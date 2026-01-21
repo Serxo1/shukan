@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useSettingsStore } from "@/store/useSettingsStore";
-import { Settings, Key, Check, FileCode, Volume2, VolumeX } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { useSettingsStore, ELEVENLABS_VOICES, type VoiceId } from "@/store/useSettingsStore";
+import { Settings, Key, Check, FileCode, Volume2, VolumeX, Mic, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const envOpenAIKey = import.meta.env.VITE_OPENAI_API_KEY || null;
@@ -26,11 +27,15 @@ export function SettingsDialog() {
     useOpenAIRealtime,
     useElevenLabs,
     ttsEnabled,
+    ttsVolume,
+    ttsVoiceId,
     setOpenAIApiKey,
     setElevenLabsApiKey,
     setUseOpenAIRealtime,
     setUseElevenLabs,
     setTtsEnabled,
+    setTtsVolume,
+    setTtsVoiceId,
   } = useSettingsStore();
 
   const [open, setOpen] = useState(false);
@@ -38,6 +43,9 @@ export function SettingsDialog() {
   const [localElevenLabsKey, setLocalElevenLabsKey] = useState(elevenLabsApiKey || "");
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
+  const [showVoiceDropdown, setShowVoiceDropdown] = useState(false);
+
+  const selectedVoice = ELEVENLABS_VOICES.find(v => v.id === ttsVoiceId) || ELEVENLABS_VOICES[0];
 
   const effectiveOpenAIKey = getEffectiveApiKey();
   const effectiveElevenLabsKey = getElevenLabsApiKey();
@@ -240,6 +248,92 @@ export function SettingsDialog() {
               />
             </button>
           </div>
+
+          {/* Voice and Volume Settings - only show when ElevenLabs is enabled */}
+          {isElevenLabsConfigured && useElevenLabs && ttsEnabled && (
+            <>
+              {/* Voice Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-muted-foreground" />
+                  Voz
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowVoiceDropdown(!showVoiceDropdown)}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm">
+                        {selectedVoice.gender === "Feminina" ? "👩" : "👨"}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{selectedVoice.name}</p>
+                        <p className="text-xs text-muted-foreground">{selectedVoice.description}</p>
+                      </div>
+                    </div>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 text-muted-foreground transition-transform",
+                      showVoiceDropdown && "rotate-180"
+                    )} />
+                  </button>
+
+                  {showVoiceDropdown && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 p-1 rounded-lg bg-popover border border-border shadow-lg max-h-64 overflow-y-auto">
+                      {ELEVENLABS_VOICES.map((voice) => (
+                        <button
+                          key={voice.id}
+                          onClick={() => {
+                            setTtsVoiceId(voice.id as VoiceId);
+                            setShowVoiceDropdown(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors",
+                            voice.id === ttsVoiceId && "bg-primary/10"
+                          )}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm">
+                            {voice.gender === "Feminina" ? "👩" : "👨"}
+                          </div>
+                          <div className="text-left flex-1">
+                            <p className="text-sm font-medium">{voice.name}</p>
+                            <p className="text-xs text-muted-foreground">{voice.description}</p>
+                          </div>
+                          {voice.id === ttsVoiceId && (
+                            <Check className="w-4 h-4 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Volume Control */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Volume2 className="w-4 h-4 text-muted-foreground" />
+                    Volume
+                  </label>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {Math.round(ttsVolume * 100)}%
+                  </span>
+                </div>
+                <Slider
+                  value={ttsVolume}
+                  onChange={setTtsVolume}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>🔈 Baixo</span>
+                  <span>Alto 🔊</span>
+                </div>
+              </div>
+            </>
+          )}
 
           {!hasAnyConfig && (
             <p className="text-xs text-muted-foreground text-center">
