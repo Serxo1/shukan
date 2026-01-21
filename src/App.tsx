@@ -1,336 +1,272 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useHabitStore, useVoiceStore } from "@/store/useHabitStore";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { SpotlightInterface } from "@/components/SpotlightInterface";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useDatabase } from "@/hooks/useDatabase";
-import { useVoiceRecognition } from "@/hooks/useVoiceRecognition";
-import { useOpenAIRealtime } from "@/hooks/useOpenAIRealtime";
-import { useHabitAgent } from "@/hooks/useHabitAgent";
-import { useSpeech } from "@/hooks/useSpeech";
-import { HabitCard } from "@/components/HabitCard";
-import { VoiceButton } from "@/components/VoiceButton";
-import { AddHabitDialog } from "@/components/AddHabitDialog";
-import { DailyProgress } from "@/components/DailyProgress";
-import { SettingsDialog } from "@/components/SettingsDialog";
-import type { VoiceCommand, Habit, Completion } from "@/types";
-import { Sparkles } from "lucide-react";
+import { useSettingsSync } from "@/hooks/useSettingsSync";
+import { useAuth } from "@/hooks/useAuth";
+import { Switch } from "@/components/ui/switch";
 import "./index.css";
 
 function App() {
-  const { habits, isLoading } = useHabitStore();
-  const { voice } = useVoiceStore();
-  const { getEffectiveApiKey, useOpenAIRealtime: useOpenAI, language } = useSettingsStore();
-  const { createHabit, completeHabit, deleteHabit, getTodayCompletions } = useDatabase();
-  const { isSupported: isWebSpeechSupported, startListening, stopListening } = useVoiceRecognition();
-  const { connect: connectOpenAI, disconnect: disconnectOpenAI, isConnected: isOpenAIConnected } = useOpenAIRealtime();
-  const { processUserInput } = useHabitAgent();
-  const { speak } = useSpeech();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
 
-  const [todayCompletions, setTodayCompletions] = useState<Completion[]>([]);
+  // Initialize database and settings sync
+  useDatabase();
+  useSettingsSync();
 
-  const apiKey = getEffectiveApiKey();
-  const shouldUseOpenAI = apiKey && useOpenAI;
-
-  const todayCompletedIds = useMemo(
-    () => new Set(todayCompletions.map((c) => c.habitId)),
-    [todayCompletions]
-  );
-
-  const completedCount = useMemo(
-    () => habits.filter((h) => todayCompletedIds.has(h.id)).length,
-    [habits, todayCompletedIds]
-  );
-
-  const loadTodayCompletions = useCallback(async () => {
-    const completions = await getTodayCompletions();
-    setTodayCompletions(completions);
-  }, [getTodayCompletions]);
-
+  // Handle keyboard shortcuts - using capture phase to ensure we catch ESC
   useEffect(() => {
-    loadTodayCompletions();
-  }, [loadTodayCompletions]);
-
-  const handleAddHabit = useCallback(
-    async (name: string, frequency: Habit["frequency"]) => {
-      const habit = await createHabit(name, frequency);
-      if (habit) {
-        speak(`Hábito ${name} criado com sucesso!`);
-      }
-    },
-    [createHabit, speak]
-  );
-
-  const handleCompleteHabit = useCallback(
-    async (habitId: number) => {
-      const success = await completeHabit(habitId);
-      if (success) {
-        const habit = habits.find((h) => h.id === habitId);
-        if (habit) {
-          const newStreak = habit.streak + 1;
-          speak(
-            `${habit.name} completado! ${newStreak > 1 ? `Streak de ${newStreak} dias!` : "Primeiro dia!"}`
-          );
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // ESC to hide window - use Rust command for reliability
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await invoke("hide_orb");
+        } catch (err) {
+          console.error("[App] Failed to hide:", err);
         }
-        await loadTodayCompletions();
       }
-    },
-    [completeHabit, habits, speak, loadTodayCompletions]
-  );
-
-  const handleDeleteHabit = useCallback(
-    async (habitId: number) => {
-      const habit = habits.find((h) => h.id === habitId);
-      const success = await deleteHabit(habitId);
-      if (success && habit) {
-        speak(`Hábito ${habit.name} removido.`);
+      // Ctrl/Cmd + , to open settings
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
-    },
-    [deleteHabit, habits, speak]
-  );
+    };
 
-  const processCommand = useCallback(
-    async (command: VoiceCommand) => {
-      switch (command.action) {
-        case "create":
-          if (command.habitName) {
-            await handleAddHabit(command.habitName, "daily");
-          }
-          break;
+    // Use capture phase to ensure we get the event first
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
 
-        case "complete":
-          if (command.habitName) {
-            const habitName = command.habitName.toLowerCase();
-            const habit = habits.find(
-              (h) =>
-                h.name.toLowerCase().includes(habitName) ||
-                habitName.includes(h.name.toLowerCase())
-            );
-            if (habit) {
-              await handleCompleteHabit(habit.id);
-            } else {
-              speak(`Não encontrei o hábito ${command.habitName}`);
-            }
-          }
-          break;
-
-        case "delete":
-          if (command.habitName) {
-            const habitName = command.habitName.toLowerCase();
-            const habit = habits.find(
-              (h) =>
-                h.name.toLowerCase().includes(habitName) ||
-                habitName.includes(h.name.toLowerCase())
-            );
-            if (habit) {
-              await handleDeleteHabit(habit.id);
-            } else {
-              speak(`Não encontrei o hábito ${command.habitName}`);
-            }
-          }
-          break;
-
-        case "list":
-          if (habits.length === 0) {
-            speak("Você ainda não tem hábitos cadastrados.");
-          } else {
-            const names = habits.map((h) => h.name).join(", ");
-            speak(`Seus hábitos são: ${names}`);
-          }
-          break;
-
-        default:
-          speak("Desculpe, não entendi o comando. Tente novamente.");
+  // Focus the window on mount
+  useEffect(() => {
+    const focusWindow = async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        await getCurrentWindow().setFocus();
+      } catch (err) {
+        // Ignore errors in non-Tauri environment
       }
-    },
-    [habits, handleAddHabit, handleCompleteHabit, handleDeleteHabit, speak]
-  );
+    };
+    focusWindow();
+  }, []);
 
-  const handleVoiceCommand = useCallback(
-    async (command: VoiceCommand, _transcript: string) => {
-      await processCommand(command);
-    },
-    [processCommand]
-  );
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="w-full h-full bg-transparent flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  const handleOpenAITranscription = useCallback(
-    async (result: { text: string; isFinal: boolean }) => {
-      if (result.isFinal && result.text) {
-        console.log("[App] Processing with agent:", result.text);
-        // Use the LLM agent to process natural language
-        await processUserInput(result.text);
-        // Reload completions after agent processes
-        await loadTodayCompletions();
-        disconnectOpenAI();
-      }
-    },
-    [processUserInput, loadTodayCompletions, disconnectOpenAI]
-  );
-
-  const handleVoiceClick = useCallback(() => {
-    if (voice.isListening || isOpenAIConnected) {
-      if (shouldUseOpenAI) {
-        disconnectOpenAI();
-      } else {
-        stopListening();
-      }
-    } else {
-      if (shouldUseOpenAI && apiKey) {
-        connectOpenAI(
-          { apiKey, language },
-          handleOpenAITranscription
-        );
-      } else {
-        startListening(handleVoiceCommand);
-      }
-    }
-  }, [
-    voice.isListening,
-    isOpenAIConnected,
-    shouldUseOpenAI,
-    apiKey,
-    language,
-    connectOpenAI,
-    disconnectOpenAI,
-    startListening,
-    stopListening,
-    handleVoiceCommand,
-    handleOpenAITranscription,
-  ]);
-
-  const today = new Date().toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
-  const voiceSupported = shouldUseOpenAI || isWebSpeechSupported();
+  // Show compact login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="w-full h-full bg-[#0a0a0a]/95 backdrop-blur-xl rounded-2xl flex items-center justify-center p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/40">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white/60 text-sm truncate">Faça login para continuar</p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await invoke("open_dashboard");
+              } catch (err) {
+                console.error("Failed to open dashboard:", err);
+              }
+            }}
+            className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/15 transition-colors flex-shrink-0"
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pb-32">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border/50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-[oklch(60%_0.25_300)] text-primary-foreground shadow-lg shadow-primary/25">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h1
-                  className="text-xl font-bold tracking-tight"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  Habit Tracker
-                </h1>
-                <p className="text-xs text-muted-foreground capitalize">{today}</p>
-              </div>
-            </div>
+    <div className="w-full h-full bg-transparent">
+      {/* Main content - fills window exactly */}
+      <div
+        className="w-full h-full"
+        data-tauri-drag-region
+      >
+        <SpotlightInterface />
+      </div>
 
+      {/* Settings Dialog - rendered as overlay */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div
+            className="relative"
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          >
+            <SettingsDialogContent onClose={() => setSettingsOpen(false)} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline settings dialog for the spotlight UI
+function SettingsDialogContent({ onClose }: { onClose: () => void }) {
+  const [localOpenAIKey, setLocalOpenAIKey] = useState("");
+  const [localElevenLabsKey, setLocalElevenLabsKey] = useState("");
+  const { saveSetting } = useSettingsSync();
+
+  const {
+    openaiApiKey,
+    elevenLabsApiKey,
+    getEffectiveApiKey,
+    getElevenLabsApiKey,
+    useOpenAIRealtime,
+    useElevenLabs,
+    ttsEnabled,
+    setOpenAIApiKey,
+    setElevenLabsApiKey,
+    setUseOpenAIRealtime,
+    setUseElevenLabs,
+    setTtsEnabled,
+  } = useSettingsStore();
+
+  useEffect(() => {
+    setLocalOpenAIKey(openaiApiKey || "");
+    setLocalElevenLabsKey(elevenLabsApiKey || "");
+  }, [openaiApiKey, elevenLabsApiKey]);
+
+  const envOpenAIKey = import.meta.env.VITE_OPENAI_API_KEY || null;
+  const envElevenLabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY || null;
+
+  const isOpenAIFromEnv = !openaiApiKey && !!envOpenAIKey;
+  const isElevenLabsFromEnv = !elevenLabsApiKey && !!envElevenLabsKey;
+  const isOpenAIConfigured = !!getEffectiveApiKey();
+  const isElevenLabsConfigured = !!getElevenLabsApiKey();
+
+  const handleSave = async () => {
+    const openaiKey = localOpenAIKey.trim() || null;
+    const elevenLabsKey = localElevenLabsKey.trim() || null;
+
+    setOpenAIApiKey(openaiKey);
+    setElevenLabsApiKey(elevenLabsKey);
+
+    // Save to SQLite and sync across windows
+    await saveSetting("openaiApiKey", openaiKey);
+    await saveSetting("elevenLabsApiKey", elevenLabsKey);
+
+    onClose();
+  };
+
+  const handleToggle = async (key: string, value: boolean, setter: (v: boolean) => void) => {
+    setter(value);
+    await saveSetting(key, value);
+  };
+
+  return (
+    <div className="w-[400px] p-6 rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-medium text-white/90">Configurações</h2>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="space-y-5">
+        {/* TTS Toggle */}
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]">
+          <div>
+            <p className="text-sm text-white/80">Leitura de Mensagens</p>
+            <p className="text-xs text-white/40">
+              {ttsEnabled ? "Ativado" : "Desativado"}
+            </p>
+          </div>
+          <Switch
+            checked={ttsEnabled}
+            onCheckedChange={(checked) => handleToggle("ttsEnabled", checked, setTtsEnabled)}
+          />
+        </div>
+
+        {/* OpenAI */}
+        <div className="space-y-2">
+          <label className="text-sm text-white/50">OpenAI API Key</label>
+          <input
+            type="password"
+            placeholder={isOpenAIFromEnv ? "Usando .env" : "sk-..."}
+            value={localOpenAIKey}
+            onChange={(e) => setLocalOpenAIKey(e.target.value)}
+            disabled={isOpenAIFromEnv}
+            className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-white/[0.06] text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 disabled:opacity-50 transition-colors"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/40">
+              {isOpenAIConfigured ? "✓ Configurada" : "Não configurada"}
+            </span>
             <div className="flex items-center gap-2">
-              <SettingsDialog />
-              <AddHabitDialog onAdd={handleAddHabit} />
+              <span className="text-xs text-white/40">STT</span>
+              <Switch
+                checked={useOpenAIRealtime}
+                onCheckedChange={(checked) => handleToggle("useOpenAIRealtime", checked, setUseOpenAIRealtime)}
+                disabled={!isOpenAIConfigured}
+              />
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Main content */}
-      <main className="container mx-auto px-6 py-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr,320px]">
-          {/* Habits list */}
-          <section>
-            <h2
-              className="text-lg font-semibold mb-4 text-muted-foreground"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Seus Hábitos
-            </h2>
-
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : habits.length === 0 ? (
-              <div className="glass rounded-2xl p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="w-8 h-8 text-primary" />
-                </div>
-                <h3
-                  className="text-xl font-semibold mb-2"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  Nenhum hábito ainda
-                </h3>
-                <p className="text-muted-foreground max-w-sm mx-auto">
-                  Comece sua jornada criando seu primeiro hábito. Use o botão acima ou diga{" "}
-                  <span className="text-primary font-medium">"Criar hábito ler"</span>
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {habits.map((habit) => (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    isCompletedToday={todayCompletedIds.has(habit.id)}
-                    onComplete={handleCompleteHabit}
-                    onDelete={handleDeleteHabit}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Sidebar */}
-          <aside className="space-y-6">
-            <DailyProgress totalHabits={habits.length} completedHabits={completedCount} />
-
-            {/* Voice assistant help */}
-            {voiceSupported && (
-              <div className="glass rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3
-                    className="font-semibold text-sm"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Assistente de Voz
-                  </h3>
-                  {shouldUseOpenAI && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      AI Agent
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Fale naturalmente! O assistente entende contexto.
-                </p>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>
-                    <span className="text-primary">"Acabei de meditar"</span>
-                  </li>
-                  <li>
-                    <span className="text-primary">"Quero começar a ler todo dia"</span>
-                  </li>
-                  <li>
-                    <span className="text-primary">"O que tenho pra fazer hoje?"</span>
-                  </li>
-                  <li>
-                    <span className="text-primary">"Hoje fiz exercício e li um livro"</span>
-                  </li>
-                </ul>
-              </div>
-            )}
-          </aside>
+        {/* ElevenLabs */}
+        <div className="space-y-2">
+          <label className="text-sm text-white/50">ElevenLabs API Key</label>
+          <input
+            type="password"
+            placeholder={isElevenLabsFromEnv ? "Usando .env" : "xi-..."}
+            value={localElevenLabsKey}
+            onChange={(e) => setLocalElevenLabsKey(e.target.value)}
+            disabled={isElevenLabsFromEnv}
+            className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-white/[0.06] text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 disabled:opacity-50 transition-colors"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/40">
+              {isElevenLabsConfigured ? "✓ Configurada" : "Não configurada"}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">TTS</span>
+              <Switch
+                checked={useElevenLabs}
+                onCheckedChange={(checked) => handleToggle("useElevenLabs", checked, setUseElevenLabs)}
+                disabled={!isElevenLabsConfigured}
+              />
+            </div>
+          </div>
         </div>
-      </main>
 
-      {/* Voice button */}
-      <VoiceButton
-        isListening={voice.isListening || isOpenAIConnected}
-        isProcessing={voice.isProcessing}
-        isSupported={voiceSupported}
-        transcript={voice.transcript}
-        onClick={handleVoiceClick}
-      />
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 transition-colors"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

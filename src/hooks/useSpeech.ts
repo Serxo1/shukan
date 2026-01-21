@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { callTTSEdgeFunction } from "@/lib/edge-functions";
 
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
-// Good Portuguese voices from ElevenLabs
-const DEFAULT_VOICE_ID = "pFZP5JQG7iQjIQuC4Bku"; // Lily - multilingual
+// Backup voice if selected one fails
 const BACKUP_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah
 
 // Models: turbo is faster and cheaper, multilingual is higher quality
@@ -24,7 +24,7 @@ export function useSpeech() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isSpeakingState, setIsSpeakingState] = useState(false);
 
-  const { getElevenLabsApiKey, useElevenLabs, ttsEnabled } = useSettingsStore();
+  const { getElevenLabsApiKey, useElevenLabs, ttsEnabled, ttsVolume, ttsVoiceId, isUsingEdgeFunctions } = useSettingsStore();
 
   const getSynth = useCallback(() => {
     if (!synthRef.current && typeof window !== "undefined") {
@@ -34,7 +34,7 @@ export function useSpeech() {
   }, []);
 
   const speakWithBrowser = useCallback(
-    (text: string, options?: { lang?: string; rate?: number; pitch?: number }) => {
+    (text: string, options?: { lang?: string; rate?: number; pitch?: number; volume?: number }) => {
       const synth = getSynth();
       if (!synth) return;
 
@@ -44,6 +44,7 @@ export function useSpeech() {
       utterance.lang = options?.lang ?? "pt-BR";
       utterance.rate = options?.rate ?? 1;
       utterance.pitch = options?.pitch ?? 1;
+      utterance.volume = options?.volume ?? ttsVolume;
 
       const voices = synth.getVoices();
       const ptVoice = voices.find(
@@ -59,52 +60,70 @@ export function useSpeech() {
 
       synth.speak(utterance);
     },
-    [getSynth]
+    [getSynth, ttsVolume]
   );
 
   const speakWithElevenLabs = useCallback(
     async (text: string, config?: ElevenLabsConfig) => {
+      const useEdgeFunctions = isUsingEdgeFunctions();
       const apiKey = getElevenLabsApiKey();
-      if (!apiKey) {
-        console.warn("[Speech] No ElevenLabs API key, falling back to browser");
+
+      // Need either Edge Functions or direct API key
+      if (!useEdgeFunctions && !apiKey) {
+        console.warn("[Speech] No ElevenLabs API key and not using Edge Functions, falling back to browser");
         speakWithBrowser(text);
         return;
       }
 
-      const voiceId = config?.voiceId || DEFAULT_VOICE_ID;
-      // Use streaming endpoint for lower latency
-      const url = `${ELEVENLABS_API_URL}/${voiceId}/stream`;
-
+      // Use voice from settings or config override
+      const voiceId = config?.voiceId || ttsVoiceId;
       // Use turbo model by default (faster & cheaper)
       const modelId = config?.useTurbo === false ? MULTILINGUAL_MODEL : TURBO_MODEL;
 
       try {
         setIsSpeakingState(true);
-        console.log("[Speech] Streaming audio with ElevenLabs (model:", modelId, ")...");
+        console.log("[Speech] Streaming audio with ElevenLabs (model:", modelId, ", edge:", useEdgeFunctions, ")...");
 
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "xi-api-key": apiKey,
-          },
-          body: JSON.stringify({
+        let response: Response;
+
+        if (useEdgeFunctions) {
+          // Use Edge Function
+          response = await callTTSEdgeFunction({
             text,
+            voice_id: voiceId,
             model_id: modelId,
             voice_settings: {
               stability: config?.stability ?? 0.5,
               similarity_boost: config?.similarityBoost ?? 0.75,
             },
-            optimize_streaming_latency: 3, // Max optimization (0-4)
-          }),
-        });
+          });
+        } else {
+          // Direct API call
+          const url = `${ELEVENLABS_API_URL}/${voiceId}/stream`;
+          response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "xi-api-key": apiKey!,
+            },
+            body: JSON.stringify({
+              text,
+              model_id: modelId,
+              voice_settings: {
+                stability: config?.stability ?? 0.5,
+                similarity_boost: config?.similarityBoost ?? 0.75,
+              },
+              optimize_streaming_latency: 3,
+            }),
+          });
+        }
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({ detail: "Unknown error" }));
           console.error("[Speech] ElevenLabs API error:", error);
 
-          // Try backup voice if main voice fails
-          if (voiceId === DEFAULT_VOICE_ID) {
+          // Try backup voice if selected voice fails (and we haven't tried backup yet)
+          if (voiceId !== BACKUP_VOICE_ID) {
             console.log("[Speech] Trying backup voice...");
             return speakWithElevenLabs(text, { ...config, voiceId: BACKUP_VOICE_ID });
           }
@@ -129,7 +148,7 @@ export function useSpeech() {
         speakWithBrowser(text);
       }
     },
-    [getElevenLabsApiKey, speakWithBrowser]
+    [getElevenLabsApiKey, isUsingEdgeFunctions, speakWithBrowser, ttsVoiceId]
   );
 
   const playWithMediaSource = useCallback(
@@ -144,6 +163,7 @@ export function useSpeech() {
       }
 
       const audio = new Audio(audioUrl);
+      audio.volume = ttsVolume; // Apply volume setting
       audioRef.current = audio;
 
       mediaSource.addEventListener("sourceopen", async () => {
@@ -207,7 +227,7 @@ export function useSpeech() {
         audioRef.current = null;
       };
     },
-    []
+    [ttsVolume]
   );
 
   const playAudioBlob = useCallback(
@@ -220,6 +240,7 @@ export function useSpeech() {
       }
 
       const audio = new Audio(audioUrl);
+      audio.volume = ttsVolume; // Apply volume setting
       audioRef.current = audio;
 
       audio.onended = () => {
@@ -238,7 +259,7 @@ export function useSpeech() {
       console.log("[Speech] Playing audio...");
       await audio.play();
     },
-    []
+    [ttsVolume]
   );
 
   const speak = useCallback(
@@ -249,8 +270,9 @@ export function useSpeech() {
         return;
       }
 
+      const useEdgeFunctions = isUsingEdgeFunctions();
       const apiKey = getElevenLabsApiKey();
-      const shouldUseElevenLabs = useElevenLabs && apiKey;
+      const shouldUseElevenLabs = useElevenLabs && (apiKey || useEdgeFunctions);
 
       if (shouldUseElevenLabs) {
         speakWithElevenLabs(text);
@@ -258,7 +280,7 @@ export function useSpeech() {
         speakWithBrowser(text, options);
       }
     },
-    [ttsEnabled, getElevenLabsApiKey, useElevenLabs, speakWithElevenLabs, speakWithBrowser]
+    [ttsEnabled, getElevenLabsApiKey, isUsingEdgeFunctions, useElevenLabs, speakWithElevenLabs, speakWithBrowser]
   );
 
   const stop = useCallback(() => {
