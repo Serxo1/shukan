@@ -1,0 +1,313 @@
+{
+  "app": {
+    "name": "Habit Tracker"
+  },
+  "login": {
+    "title": "Entrar",
+    "subtitle": "Bem-vindo de volta ao Habit Tracker",
+    "email": "Email",
+    "emailPlaceholder": "seu@email.com",
+    "password": "Senha",
+    "passwordPlaceholder": "Sua senha",
+    "submit": "Entrar",
+    "loading": "Entrando...",
+    "forgotPassword": "Esqueci minha senha",
+    "noAccount": "Não tem uma conta?",
+    "createAccount": "Criar conta",
+    "orContinueWith": "ou continue com",
+    "google": "Google",
+    "github": "GitHub",
+    "errors": {
+      "invalidCredentials": "Email ou senha incorretos",
+      "generic": "Erro ao fazer login. Tente novamente.",
+      "networkError": "Erro de conexão. Verifique sua internet."
+    }
+  },
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Deletar",
+    "add": "Adicionar",
+    "close": "Fechar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "confirm": "Confirmar",
+    "yes": "Sim",
+    "no": "Não",
+    "back": "Voltar",
+    "next": "Próximo"
+  },
+  "connectivity": {
+    "offline": "Você está offline",
+    "limitedFeatures": "Controle por voz e sincronização indisponíveis",
+    "features": {
+      "voice": "Controle por voz",
+      "tts": "Leitura de mensagens",
+      "sync": "Sincronização"
+    }
+  },
+  "onboarding": {
+    "welcome": "Bem-vindo",
+    "finish": "Começar",
+    "showOrb": {
+      "title": "Abrir o Orbe",
+      "description": "Use este atalho para mostrar o orbe a qualquer momento:",
+      "macos": "Command + Shift + H",
+      "windows": "Windows + Shift + H"
+    },
+    "hideOrb": {
+      "title": "Esconder o Orbe",
+      "description": "Pressione ESC para esconder o orbe:",
+      "hint": "Ou passe o mouse sobre o orbe e clique no X"
+    },
+    "tray": {
+      "title": "Bandeja do Sistema",
+      "description": "O app fica na bandeja do sistema. Clique com o botão direito para:",
+      "settings": "Configurações",
+      "quit": "Sair",
+      "locationMac": "Procure o ícone na barra de menu",
+      "locationWin": "Procure o ícone na barra de tarefas (canto inferior direito)"
+    }
+  },
+  "dashboard": {
+    "tabs": {
+      "habits": "Hábitos",
+      "stats": "Estatísticas",
+      "social": "Social",
+      "settings": "Configurações"
+    },
+    "offlineMode": "Modo offline",
+    "loginForSync": "Faça login para sincronizar",
+    "logout": "Sair",
+    "completedToday": "completados hoje",
+    "syncing": "Sincronizando...",
+    "newHabitPlaceholder": "Adicionar novo hábito...",
+    "noHabits": "Nenhum hábito ainda",
+    "addFirstHabit": "Adicione seu primeiro hábito para começar",
+    "best": "Melhor",
+    "stats": {
+      "totalHabits": "Total de hábitos",
+      "todayCompleted": "Completados hoje",
+      "longestStreak": "Maior streak",
+      "moreComingSoon": "Mais estatísticas em breve..."
+    }
+  },
+  "social": {
+    "loginRequired": "Faça login para acessar recursos sociais",
+    "loginDescription": "Conecte-se para competir com amigos e ver rankings",
+    "tabs": {
+      "rankings": "Rankings",
+      "friends": "Amigos",
+      "competitions": "Competições"
+    },
+    "rankings": {
+      "global": "Global",
+      "friends": "Amigos",
+      "yourRank": "Sua posição",
+      "inGlobal": "no ranking global",
+      "amongFriends": "entre amigos",
+      "empty": "Nenhum ranking disponível",
+      "noFriends": "Adicione amigos para ver o ranking",
+      "publicOnly": "Apenas perfis públicos aparecem no ranking global",
+      "habits": "hábitos",
+      "you": "você"
+    },
+    "friends": {
+      "title": "Amigos",
+      "searchPlaceholder": "Buscar usuários...",
+      "noResults": "Nenhum usuário encontrado",
+      "addFriend": "Adicionar",
+      "pendingRequests": "Solicitações pendentes",
+      "accept": "Aceitar",
+      "reject": "Recusar",
+      "remove": "Remover amigo",
+      "empty": "Nenhum amigo ainda",
+      "emptyHint": "Use a busca acima para encontrar amigos"
+    },
+    "competitions": {
+      "comingSoon": "Em breve!",
+      "description": "Crie competições e desafie seus amigos"
+    }
+  },
+  "settings": {
+    "title": "Configurações",
+    "tabs": {
+      "general": "Geral",
+      "api": "APIs",
+      "habits": "Hábitos"
+    },
+    "profile": {
+      "title": "Perfil",
+      "displayName": "Nome de exibição",
+      "edit": "Editar",
+      "publicProfile": "Perfil público",
+      "publicDescription": "Aparecer no ranking global"
+    },
+    "language": {
+      "label": "Idioma",
+      "pt": "Português",
+      "en": "English"
+    },
+    "apiMode": {
+      "label": "Modo de API",
+      "description": "Escolha como conectar aos serviços de IA",
+      "default": "Padrão",
+      "defaultDesc": "Usar nossos servidores (requer login)",
+      "custom": "Keys Próprias",
+      "customDesc": "Use suas próprias API keys",
+      "loginRequired": "Login necessário para modo padrão",
+      "voiceNote": "Nota: Entrada por voz requer keys próprias (OpenAI Realtime API)"
+    },
+    "tts": {
+      "label": "Leitura de Mensagens (TTS)",
+      "description": "O agente fala as respostas em voz alta"
+    },
+    "elevenlabs": {
+      "label": "Voz ElevenLabs",
+      "description": "Usar ElevenLabs para síntese de voz"
+    },
+    "voice": {
+      "label": "Voz do Assistente",
+      "female": "Feminina",
+      "male": "Masculina"
+    },
+    "volume": {
+      "label": "Volume",
+      "low": "Baixo",
+      "high": "Alto"
+    },
+    "api": {
+      "openai": {
+        "title": "OpenAI",
+        "description": "Usada para reconhecimento de voz (STT) e processamento de linguagem natural",
+        "configured": "Configurada",
+        "notConfigured": "Não configurada",
+        "placeholder": "sk-...",
+        "envPlaceholder": "Usando variável de ambiente"
+      },
+      "elevenlabs": {
+        "title": "ElevenLabs",
+        "description": "Usada para síntese de voz (TTS) de alta qualidade",
+        "placeholder": "xi-...",
+        "envPlaceholder": "Usando variável de ambiente"
+      },
+      "saveKeys": "Salvar Chaves"
+    },
+    "habits": {
+      "newHabit": "Novo hábito...",
+      "add": "Adicionar",
+      "empty": "Nenhum hábito cadastrado",
+      "streak": "{{count}} dias de streak"
+    }
+  },
+  "spotlight": {
+    "placeholder": "O que você fez hoje?",
+    "clickToSpeak": "Clique para falar",
+    "typeOrSpeak": "Digite ou clique no orbe para falar",
+    "typeMessage": "Digite sua mensagem...",
+    "listening": "Ouvindo...",
+    "processing": "Processando...",
+    "greeting": "Olá! Como posso ajudar com seus hábitos hoje?"
+  },
+  "habits": {
+    "completed": "completado",
+    "pending": "pendente",
+    "streak": "streak",
+    "days": "dias",
+    "today": "hoje",
+    "week": "semana",
+    "month": "mês"
+  },
+  "widgets": {
+    "progress": {
+      "of": "de"
+    },
+    "celebration": {
+      "title": "Parabéns!",
+      "keepGoing": "Continue assim!"
+    },
+    "stats": {
+      "currentStreak": "Streak Atual",
+      "bestStreak": "Melhor Streak",
+      "totalCompletions": "Total de Conclusões",
+      "completionRate": "Taxa de Conclusão"
+    },
+    "frequency": {
+      "thisWeek": "esta semana",
+      "thisMonth": "este mês",
+      "goal": "Meta",
+      "completed": "completados",
+      "daysRemaining": "dias restantes",
+      "dayRemaining": "dia restante",
+      "goalReached": "Meta atingida!"
+    },
+    "clickToClose": "Clique para fechar"
+  },
+  "agent": {
+    "systemPrompt": "Você é um assistente de hábitos. Ajude o usuário a gerenciar hábitos diários.\n\nFerramentas disponíveis:\n- criar_habito: Cria novo hábito (pode ter meta numérica)\n- completar_habito: Marca como feito hoje (hábitos booleanos)\n- registrar_progresso: Adiciona progresso parcial (hábitos quantitativos)\n- deletar_habito: Remove hábito\n- listar_habitos: Lista hábitos\n- mostrar_estatisticas: Mostra estatísticas de um hábito\n- mostrar_grafico: Mostra gráfico visual (heatmap ou barras)\n- definir_meta: Define meta de streak ou frequência (semanal/mensal)\n- verificar_conquistas: Lista conquistas desbloqueadas\n- configurar_habito: Altera cor ou ícone do hábito\n- celebrar: Celebra uma conquista com animação\n\nREGRAS IMPORTANTES:\n1. Respostas CURTAS (máximo 1-2 frases)\n2. Seja direto e objetivo\n3. Se o usuário fez algo (ex: \"li\"), complete o hábito relacionado\n4. Se quer fazer algo novo regularmente, crie o hábito\n5. Use português brasileiro casual\n6. Para hábitos com meta numérica (beber água, meditar X min), use registrar_progresso\n7. Quando o usuário atinge um streak de 7 ou 30 dias, use celebrar!\n8. Se pedir \"gráfico\", \"calendário\" ou \"semana\" de um hábito, use mostrar_grafico\n9. Para metas de longo prazo (\"quero streak de 30 dias\", \"3x por semana\", \"10x por mês\"), use definir_meta\n\nExemplos de resposta IDEAL:\n- \"Pronto! Hábito Ler criado.\"\n- \"Meditação completada! Streak de 5 dias.\"\n- \"Você tem 3 hábitos: Ler, Meditar e Exercício. Falta completar Exercício hoje.\"\n- \"Hábito removido!\"\n- \"Água: 2/8 copos registrados!\"\n- \"Aqui está o calendário de Meditação!\"\n- \"Meta definida: streak de 30 dias em Gym!\"\n- \"Cor de Meditação alterada para azul!\"\n\nNÃO faça respostas longas. Seja breve."
+  },
+  "achievements": {
+    "title": "Conquistas",
+    "locked": "Bloqueada",
+    "unlocked": "Desbloqueada",
+    "firstHabit": {
+      "name": "Primeiro Passo",
+      "description": "Criou seu primeiro hábito"
+    },
+    "firstCompletion": {
+      "name": "Começando",
+      "description": "Completou um hábito pela primeira vez"
+    },
+    "streak7": {
+      "name": "Uma Semana",
+      "description": "Manteve um streak de 7 dias"
+    },
+    "streak30": {
+      "name": "Um Mês",
+      "description": "Manteve um streak de 30 dias"
+    },
+    "streak100": {
+      "name": "Centenário",
+      "description": "Manteve um streak de 100 dias"
+    },
+    "perfectDay": {
+      "name": "Dia Perfeito",
+      "description": "Completou todos os hábitos em um dia"
+    },
+    "perfectWeek": {
+      "name": "Semana Perfeita",
+      "description": "Completou todos os hábitos por 7 dias seguidos"
+    },
+    "fiveHabits": {
+      "name": "Dedicado",
+      "description": "Criou 5 hábitos"
+    },
+    "earlyBird": {
+      "name": "Madrugador",
+      "description": "Completou um hábito antes das 7h"
+    },
+    "nightOwl": {
+      "name": "Coruja",
+      "description": "Completou um hábito depois das 22h"
+    },
+    "comeback": {
+      "name": "Volta por Cima",
+      "description": "Retomou um hábito após perder o streak"
+    },
+    "goalAchieved": {
+      "name": "Meta Batida",
+      "description": "Atingiu uma meta definida"
+    }
+  },
+  "voices": {
+    "lily": { "description": "Suave e natural" },
+    "sarah": { "description": "Clara e expressiva" },
+    "rachel": { "description": "Amigável e calorosa" },
+    "adam": { "description": "Grave e confiante" },
+    "antoni": { "description": "Jovem e dinâmica" },
+    "josh": { "description": "Profunda e calma" },
+    "elli": { "description": "Jovem e energética" },
+    "gigi": { "description": "Animada e vibrante" }
+  }
+}

@@ -1,0 +1,313 @@
+{
+  "app": {
+    "name": "Habit Tracker"
+  },
+  "login": {
+    "title": "Sign In",
+    "subtitle": "Welcome back to Habit Tracker",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com",
+    "password": "Password",
+    "passwordPlaceholder": "Your password",
+    "submit": "Sign In",
+    "loading": "Signing in...",
+    "forgotPassword": "Forgot password",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create account",
+    "orContinueWith": "or continue with",
+    "google": "Google",
+    "github": "GitHub",
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "generic": "Login failed. Please try again.",
+      "networkError": "Connection error. Check your internet."
+    }
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "add": "Add",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next"
+  },
+  "connectivity": {
+    "offline": "You're offline",
+    "limitedFeatures": "Voice control and sync unavailable",
+    "features": {
+      "voice": "Voice control",
+      "tts": "Text-to-speech",
+      "sync": "Cloud sync"
+    }
+  },
+  "onboarding": {
+    "welcome": "Welcome",
+    "finish": "Get Started",
+    "showOrb": {
+      "title": "Open the Orb",
+      "description": "Use this keyboard shortcut to show the orb anywhere:",
+      "macos": "Command + Shift + H",
+      "windows": "Windows + Shift + H"
+    },
+    "hideOrb": {
+      "title": "Hide the Orb",
+      "description": "Press ESC to hide the orb when you're done:",
+      "hint": "Or hover over the orb and click the X button"
+    },
+    "tray": {
+      "title": "System Tray",
+      "description": "The app lives in your system tray. Right-click to access:",
+      "settings": "Settings",
+      "quit": "Quit",
+      "locationMac": "Look for the icon in your menu bar",
+      "locationWin": "Look for the icon in your taskbar (bottom right)"
+    }
+  },
+  "dashboard": {
+    "tabs": {
+      "habits": "Habits",
+      "stats": "Statistics",
+      "social": "Social",
+      "settings": "Settings"
+    },
+    "offlineMode": "Offline mode",
+    "loginForSync": "Login to sync",
+    "logout": "Logout",
+    "completedToday": "completed today",
+    "syncing": "Syncing...",
+    "newHabitPlaceholder": "Add new habit...",
+    "noHabits": "No habits yet",
+    "addFirstHabit": "Add your first habit to get started",
+    "best": "Best",
+    "stats": {
+      "totalHabits": "Total habits",
+      "todayCompleted": "Completed today",
+      "longestStreak": "Longest streak",
+      "moreComingSoon": "More statistics coming soon..."
+    }
+  },
+  "social": {
+    "loginRequired": "Login to access social features",
+    "loginDescription": "Connect to compete with friends and see rankings",
+    "tabs": {
+      "rankings": "Rankings",
+      "friends": "Friends",
+      "competitions": "Competitions"
+    },
+    "rankings": {
+      "global": "Global",
+      "friends": "Friends",
+      "yourRank": "Your rank",
+      "inGlobal": "in global ranking",
+      "amongFriends": "among friends",
+      "empty": "No rankings available",
+      "noFriends": "Add friends to see the ranking",
+      "publicOnly": "Only public profiles appear in the global ranking",
+      "habits": "habits",
+      "you": "you"
+    },
+    "friends": {
+      "title": "Friends",
+      "searchPlaceholder": "Search users...",
+      "noResults": "No users found",
+      "addFriend": "Add",
+      "pendingRequests": "Pending requests",
+      "accept": "Accept",
+      "reject": "Reject",
+      "remove": "Remove friend",
+      "empty": "No friends yet",
+      "emptyHint": "Use the search above to find friends"
+    },
+    "competitions": {
+      "comingSoon": "Coming soon!",
+      "description": "Create competitions and challenge your friends"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "api": "APIs",
+      "habits": "Habits"
+    },
+    "profile": {
+      "title": "Profile",
+      "displayName": "Display name",
+      "edit": "Edit",
+      "publicProfile": "Public profile",
+      "publicDescription": "Appear in global ranking"
+    },
+    "language": {
+      "label": "Language",
+      "pt": "Português",
+      "en": "English"
+    },
+    "apiMode": {
+      "label": "API Mode",
+      "description": "Choose how to connect to AI services",
+      "default": "Default",
+      "defaultDesc": "Use our servers (requires login)",
+      "custom": "Custom Keys",
+      "customDesc": "Use your own API keys",
+      "loginRequired": "Login required for default mode",
+      "voiceNote": "Note: Voice input requires custom keys (OpenAI Realtime API)"
+    },
+    "tts": {
+      "label": "Text-to-Speech (TTS)",
+      "description": "The agent speaks responses out loud"
+    },
+    "elevenlabs": {
+      "label": "ElevenLabs Voice",
+      "description": "Use ElevenLabs for voice synthesis"
+    },
+    "voice": {
+      "label": "Assistant Voice",
+      "female": "Female",
+      "male": "Male"
+    },
+    "volume": {
+      "label": "Volume",
+      "low": "Low",
+      "high": "High"
+    },
+    "api": {
+      "openai": {
+        "title": "OpenAI",
+        "description": "Used for speech recognition (STT) and natural language processing",
+        "configured": "Configured",
+        "notConfigured": "Not configured",
+        "placeholder": "sk-...",
+        "envPlaceholder": "Using environment variable"
+      },
+      "elevenlabs": {
+        "title": "ElevenLabs",
+        "description": "Used for high-quality text-to-speech (TTS)",
+        "placeholder": "xi-...",
+        "envPlaceholder": "Using environment variable"
+      },
+      "saveKeys": "Save Keys"
+    },
+    "habits": {
+      "newHabit": "New habit...",
+      "add": "Add",
+      "empty": "No habits registered",
+      "streak": "{{count}} day streak"
+    }
+  },
+  "spotlight": {
+    "placeholder": "What did you do today?",
+    "clickToSpeak": "Click to speak",
+    "typeOrSpeak": "Type or click the orb to speak",
+    "typeMessage": "Type your message...",
+    "listening": "Listening...",
+    "processing": "Processing...",
+    "greeting": "Hello! How can I help with your habits today?"
+  },
+  "habits": {
+    "completed": "completed",
+    "pending": "pending",
+    "streak": "streak",
+    "days": "days",
+    "today": "today",
+    "week": "week",
+    "month": "month"
+  },
+  "widgets": {
+    "progress": {
+      "of": "of"
+    },
+    "celebration": {
+      "title": "Congratulations!",
+      "keepGoing": "Keep it up!"
+    },
+    "stats": {
+      "currentStreak": "Current Streak",
+      "bestStreak": "Best Streak",
+      "totalCompletions": "Total Completions",
+      "completionRate": "Completion Rate"
+    },
+    "frequency": {
+      "thisWeek": "this week",
+      "thisMonth": "this month",
+      "goal": "Goal",
+      "completed": "completed",
+      "daysRemaining": "days remaining",
+      "dayRemaining": "day remaining",
+      "goalReached": "Goal reached!"
+    },
+    "clickToClose": "Click to close"
+  },
+  "agent": {
+    "systemPrompt": "You are a habit assistant. Help users manage their daily habits.\n\nAvailable tools:\n- criar_habito: Creates a new habit (can have numeric goal)\n- completar_habito: Marks as done today (boolean habits)\n- registrar_progresso: Adds partial progress (quantitative habits)\n- deletar_habito: Removes habit\n- listar_habitos: Lists habits\n- mostrar_estatisticas: Shows habit statistics\n- mostrar_grafico: Shows visual chart (heatmap or bars)\n- definir_meta: Sets streak or frequency goal (weekly/monthly)\n- verificar_conquistas: Lists unlocked achievements\n- configurar_habito: Changes habit color or icon\n- celebrar: Triggers celebration animation\n\nIMPORTANT RULES:\n1. SHORT responses (1-2 sentences max)\n2. Be direct and objective\n3. If user did something (e.g., \"I read\"), complete the related habit\n4. If they want to do something regularly, create the habit\n5. Use casual English\n6. For habits with numeric goals (drink water, meditate X min), use registrar_progresso\n7. When user reaches a 7 or 30 day streak, use celebrar!\n8. If asked for \"chart\", \"calendar\" or \"week\" of a habit, use mostrar_grafico\n9. For long-term goals (\"I want 30 day streak\", \"3x per week\", \"10x per month\"), use definir_meta\n\nIDEAL response examples:\n- \"Done! Read habit created.\"\n- \"Meditation completed! 5 day streak.\"\n- \"You have 3 habits: Read, Meditate and Exercise. Exercise is pending today.\"\n- \"Habit removed!\"\n- \"Water: 2/8 glasses logged!\"\n- \"Here's the Meditation calendar!\"\n- \"Goal set: 30 day streak for Gym!\"\n- \"Meditation color changed to blue!\"\n\nDO NOT give long responses. Be brief."
+  },
+  "achievements": {
+    "title": "Achievements",
+    "locked": "Locked",
+    "unlocked": "Unlocked",
+    "firstHabit": {
+      "name": "First Step",
+      "description": "Created your first habit"
+    },
+    "firstCompletion": {
+      "name": "Getting Started",
+      "description": "Completed a habit for the first time"
+    },
+    "streak7": {
+      "name": "One Week",
+      "description": "Maintained a 7-day streak"
+    },
+    "streak30": {
+      "name": "One Month",
+      "description": "Maintained a 30-day streak"
+    },
+    "streak100": {
+      "name": "Centurion",
+      "description": "Maintained a 100-day streak"
+    },
+    "perfectDay": {
+      "name": "Perfect Day",
+      "description": "Completed all habits in one day"
+    },
+    "perfectWeek": {
+      "name": "Perfect Week",
+      "description": "Completed all habits for 7 consecutive days"
+    },
+    "fiveHabits": {
+      "name": "Dedicated",
+      "description": "Created 5 habits"
+    },
+    "earlyBird": {
+      "name": "Early Bird",
+      "description": "Completed a habit before 7am"
+    },
+    "nightOwl": {
+      "name": "Night Owl",
+      "description": "Completed a habit after 10pm"
+    },
+    "comeback": {
+      "name": "Comeback",
+      "description": "Resumed a habit after losing a streak"
+    },
+    "goalAchieved": {
+      "name": "Goal Achieved",
+      "description": "Reached a defined goal"
+    }
+  },
+  "voices": {
+    "lily": { "description": "Soft and natural" },
+    "sarah": { "description": "Clear and expressive" },
+    "rachel": { "description": "Friendly and warm" },
+    "adam": { "description": "Deep and confident" },
+    "antoni": { "description": "Young and dynamic" },
+    "josh": { "description": "Deep and calm" },
+    "elli": { "description": "Young and energetic" },
+    "gigi": { "description": "Lively and vibrant" }
+  }
+}
