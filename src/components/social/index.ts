@@ -1,0 +1,1 @@
+export { SocialTab } from "./SocialTab";
