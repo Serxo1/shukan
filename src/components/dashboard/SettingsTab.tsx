@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -14,7 +14,7 @@ interface SettingsTabProps {
   onUploadAvatar: (file: File) => Promise<void>;
 }
 
-export function SettingsTab({
+export const SettingsTab = memo(function SettingsTab({
   isAuthenticated,
   profile,
   onUpdateProfile,
@@ -450,4 +450,4 @@ export function SettingsTab({
       </div>
     </div>
   );
-}
+});

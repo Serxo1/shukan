@@ -1,14 +1,20 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { useDatabase } from "@/hooks/useDatabase";
 import { useHabitStore } from "@/store/useHabitStore";
 import { useCloudSync } from "@/hooks/useCloudSync";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { HabitsTab, StatsTab, SettingsTab } from "@/components/dashboard";
-import { SocialTab } from "@/components/social";
+import { HabitsTab } from "@/components/dashboard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { TabLoadingFallback } from "@/components/LoadingFallback";
 import type { Achievement } from "@/types";
 import "@/index.css";
+
+// Lazy load less frequently used tabs
+const StatsTab = lazy(() => import("@/components/dashboard/StatsTab").then(m => ({ default: m.StatsTab })));
+const SettingsTab = lazy(() => import("@/components/dashboard/SettingsTab").then(m => ({ default: m.SettingsTab })));
+const SocialTab = lazy(() => import("@/components/social").then(m => ({ default: m.SocialTab })));
 
 type Tab = "habits" | "stats" | "social" | "settings";
 
@@ -190,39 +196,49 @@ export default function DashboardPage() {
 
         {/* Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {activeTab === "habits" && (
-            <HabitsTab
-              habits={habits}
-              completedIds={completedIds}
-              weekCompletions={weekCompletions}
-              weekDays={weekDays}
-              todayKey={todayKey}
-              newHabitName={newHabitName}
-              onNewHabitNameChange={setNewHabitName}
-              onAddHabit={handleAddHabit}
-              onToggleHabit={handleToggleHabit}
-              onDeleteHabit={deleteHabit}
-            />
-          )}
+          <ErrorBoundary>
+            {activeTab === "habits" && (
+              <HabitsTab
+                habits={habits}
+                completedIds={completedIds}
+                weekCompletions={weekCompletions}
+                weekDays={weekDays}
+                todayKey={todayKey}
+                newHabitName={newHabitName}
+                onNewHabitNameChange={setNewHabitName}
+                onAddHabit={handleAddHabit}
+                onToggleHabit={handleToggleHabit}
+                onDeleteHabit={deleteHabit}
+              />
+            )}
 
-          {activeTab === "stats" && (
-            <StatsTab
-              habits={habits}
-              completedIds={completedIds}
-              achievements={achievements}
-            />
-          )}
+            {activeTab === "stats" && (
+              <Suspense fallback={<TabLoadingFallback />}>
+                <StatsTab
+                  habits={habits}
+                  completedIds={completedIds}
+                  achievements={achievements}
+                />
+              </Suspense>
+            )}
 
-          {activeTab === "social" && <SocialTab />}
+            {activeTab === "social" && (
+              <Suspense fallback={<TabLoadingFallback />}>
+                <SocialTab />
+              </Suspense>
+            )}
 
-          {activeTab === "settings" && (
-            <SettingsTab
-              isAuthenticated={isAuthenticated}
-              profile={profile}
-              onUpdateProfile={updateProfile}
-              onUploadAvatar={uploadAvatar}
-            />
-          )}
+            {activeTab === "settings" && (
+              <Suspense fallback={<TabLoadingFallback />}>
+                <SettingsTab
+                  isAuthenticated={isAuthenticated}
+                  profile={profile}
+                  onUpdateProfile={updateProfile}
+                  onUploadAvatar={uploadAvatar}
+                />
+              </Suspense>
+            )}
+          </ErrorBoundary>
         </div>
       </div>
     </div>

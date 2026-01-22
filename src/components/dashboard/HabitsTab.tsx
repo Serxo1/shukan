@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Habit } from "@/types";
 
@@ -21,7 +21,7 @@ function formatDateKey(date: Date) {
   return date.toISOString().split("T")[0];
 }
 
-export function HabitsTab({
+export const HabitsTab = memo(function HabitsTab({
   habits,
   completedIds,
   weekCompletions,
@@ -175,4 +175,4 @@ export function HabitsTab({
       </div>
     </div>
   );
-}
+});

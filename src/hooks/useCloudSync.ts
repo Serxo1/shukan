@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDatabase } from '@/hooks/useDatabase'
 import { syncLogger as log } from '@/lib/debug'
-import type { CloudHabit, CloudHabitInsert } from '@/types/database'
+import type { CloudHabit, CloudHabitInsert, CloudHabitUpdate, CloudCompletionInsert } from '@/types/database'
 import type { Habit } from '@/types'
 
 // Map local habit to cloud format
@@ -42,7 +42,7 @@ export function useCloudSync() {
 
     const { data, error } = await supabase
       .from('habits')
-      .upsert(cloudHabit as never, { onConflict: 'id' })
+      .upsert(cloudHabit, { onConflict: 'id' })
       .select()
       .single()
 
@@ -58,14 +58,16 @@ export function useCloudSync() {
   const uploadCompletion = useCallback(async (habitCloudId: string, date: string, value: number = 1) => {
     if (!supabase || !user) return null
 
+    const completionData: CloudCompletionInsert = {
+      habit_id: habitCloudId,
+      user_id: user.id,
+      date,
+      value
+    }
+
     const { data, error } = await supabase
       .from('completions')
-      .upsert({
-        habit_id: habitCloudId,
-        user_id: user.id,
-        date,
-        value
-      } as never, { onConflict: 'habit_id,date' })
+      .upsert(completionData, { onConflict: 'habit_id,date' })
       .select()
       .single()
 
@@ -114,14 +116,15 @@ export function useCloudSync() {
         if (existingId) {
           // Update existing habit
           log.debug('[CloudSync] Updating existing habit:', habit.name)
+          const updateData: CloudHabitUpdate = {
+            streak: habit.streak,
+            best_streak: habit.bestStreak || 0,
+            icon: habit.icon || '⭐',
+            color: habit.color || '#8B5CF6',
+          }
           await supabase
             .from('habits')
-            .update({
-              streak: habit.streak,
-              best_streak: habit.bestStreak || 0,
-              icon: habit.icon || '⭐',
-              color: habit.color || '#8B5CF6',
-            } as never)
+            .update(updateData)
             .eq('id', existingId)
         } else {
           // Insert new habit
@@ -182,9 +185,10 @@ export function useCloudSync() {
   const updateHabitCategory = useCallback(async (habitCloudId: string, categoryId: number) => {
     if (!supabase) return
 
+    const updateData: CloudHabitUpdate = { category_id: categoryId }
     const { error } = await supabase
       .from('habits')
-      .update({ category_id: categoryId } as never)
+      .update(updateData)
       .eq('id', habitCloudId)
 
     if (error) {
@@ -197,9 +201,10 @@ export function useCloudSync() {
   const setHabitPublic = useCallback(async (habitCloudId: string, isPublic: boolean) => {
     if (!supabase) return
 
+    const updateData: CloudHabitUpdate = { is_public: isPublic }
     const { error } = await supabase
       .from('habits')
-      .update({ is_public: isPublic } as never)
+      .update(updateData)
       .eq('id', habitCloudId)
 
     if (error) throw error

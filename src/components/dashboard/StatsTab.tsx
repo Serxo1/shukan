@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Habit, Achievement } from "@/types";
@@ -28,7 +28,7 @@ const codeToI18nKey = (code: string): string => {
   return map[code] || code;
 };
 
-export function StatsTab({ habits, completedIds, achievements }: StatsTabProps) {
+export const StatsTab = memo(function StatsTab({ habits, completedIds, achievements }: StatsTabProps) {
   const { t } = useTranslation();
 
   const completedCount = useMemo(
@@ -135,4 +135,4 @@ export function StatsTab({ habits, completedIds, achievements }: StatsTabProps) 
       </div>
     </div>
   );
-}
+});

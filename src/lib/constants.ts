@@ -1,6 +1,6 @@
 // Window sizes
 export const WINDOW_SIZES = {
-  ORB: { width: 500, height: 64 },
+  ORB: { width: 620, height: 64 },
   ORB_EXPANDED_MAX_HEIGHT: 600,
   SETTINGS: { width: 900, height: 640 },
   ONBOARDING: { width: 450, height: 520 },
