@@ -141,23 +141,36 @@ fn hide_window(app: &tauri::AppHandle) {
     }
 }
 
+// Helper to open settings window - uses spawn to avoid deadlock
 fn open_settings_window(app: &tauri::AppHandle) {
-    // Check if settings window already exists
-    if let Some(window) = app.get_webview_window("settings") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        return;
-    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
-    // Create new settings window
-    let _window = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
-        .title("Habit Tracker")
-        .inner_size(900.0, 640.0)
-        .min_inner_size(800.0, 600.0)
-        .resizable(true)
-        .decorations(false)
-        .center()
-        .build();
+        // Check if window exists
+        if let Some(window) = app.get_webview_window("settings") {
+            let _ = window.show();
+            let _ = window.set_focus();
+            return;
+        }
+
+        // Create window
+        match WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("/settings".into()))
+            .title("Habit Tracker")
+            .inner_size(900.0, 640.0)
+            .min_inner_size(800.0, 600.0)
+            .resizable(true)
+            .decorations(false)
+            .center()
+            .devtools(true)
+            .build()
+        {
+            Ok(w) => {
+                let _ = w.set_focus();
+            }
+            Err(e) => eprintln!("[Settings] Error creating window: {:?}", e),
+        }
+    });
 }
 
 fn open_onboarding_window(app: &tauri::AppHandle) {
@@ -199,9 +212,9 @@ fn hide_orb(app: tauri::AppHandle) {
 
 #[tauri::command]
 fn open_dashboard(app: tauri::AppHandle) {
-    println!("[Command] open_dashboard called");
     open_settings_window(&app);
 }
+
 
 #[tauri::command]
 fn check_onboarding_complete(app: tauri::AppHandle) -> bool {

@@ -45,18 +45,21 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
+      {/* Noise texture overlay */}
+      <div className="noise" />
+
       {/* Custom title bar */}
       <div
-        className="h-10 flex items-center justify-between px-4 bg-[#0a0a0a]"
+        className="h-10 flex items-center justify-between px-4 border-b border-[rgba(168,162,158,0.06)]"
         data-tauri-drag-region
       >
-        <span className="text-xs text-white/30" data-tauri-drag-region>
-          {t("app.name")}
+        <span className="font-display text-sm italic text-[#78716c] tracking-wide" data-tauri-drag-region>
+          習慣
         </span>
         <div className="flex items-center gap-1">
           <button
             onClick={handleMinimize}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-[#78716c]/40 hover:text-[#a8a29e] transition-all duration-500"
           >
             <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
               <rect width="10" height="1" />
@@ -64,7 +67,7 @@ export default function LoginPage() {
           </button>
           <button
             onClick={handleClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-[#78716c]/40 hover:text-[#9d6b6b] transition-all duration-500"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M1 1l8 8M9 1l-8 8" />
@@ -75,28 +78,30 @@ export default function LoginPage() {
 
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
-          {/* Logo */}
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 mx-auto mb-8">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+        <div className="w-full max-w-sm animate-fade-in">
+          {/* Logo - Ensō circle */}
+          <div className="flex items-center justify-center mx-auto mb-10">
+            <svg width="60" height="60" viewBox="0 0 100 100" className="text-[#a8a29e]">
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="240"
+                strokeDashoffset="30"
+                opacity="0.3"
+              />
             </svg>
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-semibold text-white text-center mb-2">
+          <h1 className="font-display text-3xl text-[#fafaf9] text-center mb-2 italic">
             {t("login.title")}
           </h1>
-          <p className="text-sm text-white/40 text-center mb-8">
+          <p className="text-sm text-[#78716c] text-center mb-10 tracking-wide">
             {t("login.subtitle")}
           </p>
 
@@ -109,7 +114,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50 transition-all"
+              className="w-full px-4 py-3 bg-transparent border border-[rgba(168,162,158,0.1)] rounded-sm text-[#fafaf9] placeholder:text-[#78716c]/50 text-sm focus:outline-none focus:border-[rgba(168,162,158,0.3)] disabled:opacity-40 transition-all duration-500 tracking-wide"
             />
             <input
               type="password"
@@ -118,18 +123,18 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50 transition-all"
+              className="w-full px-4 py-3 bg-transparent border border-[rgba(168,162,158,0.1)] rounded-sm text-[#fafaf9] placeholder:text-[#78716c]/50 text-sm focus:outline-none focus:border-[rgba(168,162,158,0.3)] disabled:opacity-40 transition-all duration-500 tracking-wide"
             />
 
             {error && (
-              <p className="text-sm text-red-400 text-center">{error}</p>
+              <p className="text-sm text-[#9d6b6b] text-center tracking-wide">{error}</p>
             )}
 
-            <div className="pt-2">
+            <div className="pt-4">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-white/10 text-white font-medium px-4 py-3 rounded-full hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                className="w-full border border-[rgba(168,162,158,0.3)] bg-transparent text-[#fafaf9] font-normal px-4 py-3 rounded-sm hover:bg-[rgba(168,162,158,0.1)] hover:border-[rgba(168,162,158,0.5)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-500 text-sm tracking-[0.1em] uppercase"
               >
                 {isLoading ? t("login.loading") : t("login.submit")}
               </button>
@@ -137,20 +142,20 @@ export default function LoginPage() {
           </form>
 
           {/* Links */}
-          <div className="mt-6 space-y-3 text-center">
+          <div className="mt-8 space-y-4 text-center">
             <button
               type="button"
               onClick={() => openUrl("https://habittracker.app/reset-password")}
-              className="text-xs text-white/40 hover:text-white/60 transition-colors"
+              className="text-xs text-[#78716c]/50 hover:text-[#a8a29e] transition-all duration-500 tracking-wide"
             >
               {t("login.forgotPassword")}
             </button>
-            <p className="text-xs text-white/30">
+            <p className="text-xs text-[#78716c]/40 tracking-wide">
               {t("login.noAccount")}{" "}
               <button
                 type="button"
                 onClick={() => openUrl("https://habittracker.app/signup")}
-                className="text-white/60 hover:text-white/80 underline transition-colors"
+                className="text-[#a8a29e] hover:text-[#fafaf9] transition-all duration-500"
               >
                 {t("login.createAccount")}
               </button>

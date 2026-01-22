@@ -41,17 +41,19 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 
-  // Focus the window on mount
+  // Show and focus the window on mount (window starts hidden to prevent title flicker)
   useEffect(() => {
-    const focusWindow = async () => {
+    const showAndFocusWindow = async () => {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        await getCurrentWindow().setFocus();
+        const win = getCurrentWindow();
+        await win.show();
+        await win.setFocus();
       } catch (err) {
         // Ignore errors in non-Tauri environment
       }
     };
-    focusWindow();
+    showAndFocusWindow();
   }, []);
 
   // Show loading state while checking auth

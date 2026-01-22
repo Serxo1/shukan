@@ -16,8 +16,12 @@ export default function MainWindow() {
 
   const { isAuthenticated, isLoading, isConfigured } = useAuth();
 
+  // Debug logging
+  console.log("[MainWindow] State:", { isAuthenticated, isLoading, isConfigured });
+
   // Show loading state while checking auth
   if (isLoading) {
+    console.log("[MainWindow] Rendering loading state");
     return (
       <div className="h-screen flex items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
@@ -42,6 +46,7 @@ export default function MainWindow() {
               />
             </svg>
           </div>
+          <p className="text-white/40 text-sm">Carregando...</p>
         </div>
       </div>
     );
@@ -50,9 +55,11 @@ export default function MainWindow() {
   // If Supabase is not configured, show dashboard anyway (offline mode)
   // If configured but not authenticated, show login
   if (isConfigured && !isAuthenticated) {
+    console.log("[MainWindow] Rendering LoginPage");
     return <LoginPage />;
   }
 
   // Show dashboard (authenticated or offline mode)
+  console.log("[MainWindow] Rendering DashboardPage");
   return <DashboardPage />;
 }

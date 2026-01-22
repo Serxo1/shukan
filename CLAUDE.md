@@ -1,141 +1,126 @@
-# Habit Tracker - AI Desktop Agent
+# CLAUDE.md
 
-## Visão Geral
-Aplicativo desktop Tauri + React para tracking de hábitos com controle por voz (STT/TTS) e banco de dados local SQLite.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Stack Tecnológica
-- **Frontend**: React + TypeScript + Vite + shadcn/ui + Zustand
-- **Backend**: Tauri (Rust) + SQLite
-- **Voz**: OpenAI Realtime API (STT) + ElevenLabs (TTS)
+## Development Commands
 
-## Estrutura do Banco de Dados
-
-```sql
-CREATE TABLE IF NOT EXISTS habits (
-  id INTEGER PRIMARY KEY,
-  name TEXT,
-  frequency TEXT,
-  streak INTEGER DEFAULT 0
-);
-
-CREATE TABLE completions (
-  id INTEGER PRIMARY KEY,
-  habit_id INTEGER,
-  date TEXT,
-  FOREIGN KEY(habit_id) REFERENCES habits(id)
-);
-
--- Indexes para performance
-CREATE INDEX idx_date ON completions(date);
-CREATE INDEX idx_habit_id ON completions(habit_id);
-```
-
-## Funcionalidades Core
-
-### 1. Log por Voz
-- Parse de comandos: "Registre gym 30min" → insert completion + update streak
-- Resposta TTS: "Gym logado! Streak 5 dias"
-
-### 2. Dashboard
-- Lista de hábitos (shadcn Table)
-- Streaks (shadcn Progress)
-- Heatmap calendário (Calendar + Badge)
-- AI summary de progresso
-
-### 3. Lembretes
-- Notificações nativas Tauri para hábitos pendentes
-- Relatório semanal por voz
-
-## Configuração Tauri
-
-### Plugins Necessários
 ```bash
-cargo add tauri-plugin-sql --features sqlite
+# Development
+npm run tauri dev          # Run Tauri app with hot reload
+
+# Build
+npm run tauri build        # Build production executable (.exe/.msi)
+
+# Frontend only
+npm run dev                # Run Vite dev server (frontend only)
+npm run build              # Build frontend
+
+# Supabase Edge Functions
+supabase functions serve   # Local edge function testing
+supabase functions deploy  # Deploy to production
 ```
 
-### main.rs
-```rust
-.plugin(tauri_plugin_sql::init())
+## Architecture Overview
+
+This is a **Tauri 2 + React** desktop app for habit tracking with voice control. It uses a **multi-window architecture** with different routes loading different components.
+
+### Window System
+
+| Window | Route | Component | Size | Purpose |
+|--------|-------|-----------|------|---------|
+| main (orb) | `/` | App.tsx → SpotlightInterface | 500x64px | Floating voice/text input |
+| settings | `/settings` | MainWindow → DashboardPage | 900x640px | Full dashboard |
+| onboarding | `/onboarding` | OnboardingWindow | 450x520px | First-time setup |
+
+**Routing** is handled in `src/main.tsx` via `window.location.pathname` (not React Router).
+
+### State Management (Zustand)
+
+- `useHabitStore` - Habits, completions, voice state
+- `useSettingsStore` - API keys, TTS settings, API mode (default/custom)
+- `useAuthStore` - Supabase auth state
+- `useWidgetStore` - Active widget overlays
+
+### Data Flow
+
+```
+Frontend Hooks → SQLite (local) + Supabase (cloud)
+                      ↓
+           useDatabase (local queries)
+           useCloudSync (real-time sync)
+           useAuth (authentication)
 ```
 
-### tauri.conf.json
-- Permissões: microphone, notifications
-- API keys em configuração (não no frontend)
+### API Mode System
 
-## Padrões de Código
+- **Default mode**: Uses Supabase Edge Functions (requires auth, no voice input)
+- **Custom mode**: User's own API keys (full features including voice input)
 
-### Frontend (TypeScript)
-```typescript
-// tsconfig.json: "strict": true, "noImplicitAny": true
+Voice input requires custom API keys because OpenAI Realtime API needs direct WebSocket connection.
 
-interface Habit {
-  id: number;
-  name: string;
-  frequency: string;
-  streak: number;
-}
+## Key Patterns
 
-interface Completion {
-  id: number;
-  habit_id: number;
-  date: string;
-}
-```
+### ⚠️ Window Creation from Invoke Handlers
 
-### Componentes Principais
-- `<VoiceListener />` - captura e processa comandos de voz
-- `<HabitTable data={habits} />` - lista de hábitos
-- `<StreakChart />` - visualização de streaks
+**ALWAYS** use `std::thread::spawn` when creating windows from Tauri commands to avoid deadlock:
 
-### Hooks Custom
-- `useSQLite()` - queries ao banco
-- Zustand store para habits e voice state
-
-### Backend (Rust)
 ```rust
 #[tauri::command]
-async fn get_habits(db: State<Mutex<SqlitePool>>) -> Result<Vec<Habit>, String> {
-    // implementação
+fn open_my_window(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        if let Some(window) = app.get_webview_window("my_window") {
+            let _ = window.show();
+            let _ = window.set_focus();
+            return;
+        }
+
+        let _ = WebviewWindowBuilder::new(&app, "my_window", WebviewUrl::App("/route".into()))
+            .title("Window Title")
+            .inner_size(800.0, 600.0)
+            .build();
+    });
 }
 ```
 
-## APIs de Voz
+**Why?** Calling `WebviewWindowBuilder::build()` directly from an invoke handler causes deadlock because both need the event loop.
 
-### OpenAI Realtime (STT)
-- WebSocket com reconnect (exponential backoff)
-- Eventos: "session.updated" para intents, "error" com toast
+### Edge Functions Structure
 
-### ElevenLabs (TTS)
-```javascript
-fetch('/v1/text-to-speech/{voice_id}', {
-  headers: { 'xi-api-key': apiKey }
-}) // → play com AudioContext
-```
-- Fallback: Web Speech API se offline
+Located in `supabase/functions/`:
+- `/chat` - Proxies OpenAI API with auth
+- `/tts` - Proxies ElevenLabs API with auth
 
-## Segurança
-- Queries parametrizadas sempre (evitar SQL injection)
-- Validar inputs de voz contra injeções
-- API keys no backend, nunca no frontend
+Both require Supabase session token and read API keys from Supabase secrets.
 
-## Performance
-- SQLite: PRAGMA journal_mode=WAL
-- React: memo/useMemo para listas grandes
-- Debounce na captura de voz
-- Bundle target: <50MB
+### Voice Pipeline
 
-## Testes
-- **Unit**: Vitest (frontend) + cargo test (Rust)
-- **E2E**: Playwright com mock MediaStream
-- **Performance**: Lighthouse <50ms input latency
+1. User speaks → `useOpenAIRealtime` WebSocket → live transcription
+2. Speech end → `useHabitAgent` processes with GPT-4o-mini
+3. AI response → `useSpeech` → TTS playback (ElevenLabs or Web Speech API)
 
-## Comandos de Desenvolvimento
-```bash
-# Frontend
-npm install
-npm run dev
+### i18n
 
-# Tauri
-cargo tauri dev
-cargo tauri build
-```
+Languages: Portuguese (pt), English (en)
+Files: `src/i18n/locales/{pt,en}.json`
+Usage: `const { t } = useTranslation(); t("key.path")`
+
+## Database
+
+### Local SQLite
+Tables: `habits`, `completions`, `goals`, `achievements`, `settings`
+Migrations: `src-tauri/src/lib.rs` (get_migrations function)
+
+### Cloud (Supabase)
+Tables: `profiles`, `friendships`, `competitions`, etc.
+Migrations: `supabase/migrations/`
+
+## Important Files
+
+- `src-tauri/src/lib.rs` - Rust backend, window management, Tauri commands
+- `src/main.tsx` - Route-based component selection
+- `src/components/SpotlightInterface.tsx` - Main orb UI
+- `src/pages/DashboardPage.tsx` - Full dashboard with tabs
+- `src/hooks/useHabitAgent.ts` - Voice command processing
+- `src/store/useSettingsStore.ts` - API mode and settings

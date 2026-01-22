@@ -23,10 +23,10 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-full h-2 appearance-none cursor-pointer bg-transparent"
+          className="w-full h-0.5 appearance-none cursor-pointer bg-transparent"
           style={{
-            background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${percentage}%, var(--color-secondary) ${percentage}%, var(--color-secondary) 100%)`,
-            borderRadius: "9999px",
+            background: `linear-gradient(to right, rgba(168, 162, 158, 0.6) 0%, rgba(168, 162, 158, 0.6) ${percentage}%, rgba(168, 162, 158, 0.15) ${percentage}%, rgba(168, 162, 158, 0.15) 100%)`,
+            borderRadius: "2px",
           }}
           {...props}
         />
@@ -34,29 +34,24 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: white;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            background: #a8a29e;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            border: 2px solid var(--color-primary);
-            transition: transform 0.15s ease;
+            border: none;
+            transition: all 0.5s ease;
           }
           input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-          }
-          input[type="range"]::-webkit-slider-thumb:active {
-            transform: scale(0.95);
+            background: #fafaf9;
           }
           input[type="range"]::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: white;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            background: #a8a29e;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            border: 2px solid var(--color-primary);
+            border: none;
           }
         `}</style>
       </div>

@@ -82,8 +82,8 @@ const DialogOverlay = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>
       <div
         ref={ref}
         className={cn(
-          "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
-          "animate-in fade-in-0 duration-200",
+          "fixed inset-0 z-50 bg-black/70 backdrop-blur-sm",
+          "animate-in fade-in-0 duration-500",
           className
         )}
         onClick={() => setOpen(false)}
@@ -105,17 +105,20 @@ const DialogContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>
           ref={ref}
           className={cn(
             "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-            "glass rounded-3xl p-8 shadow-2xl",
-            "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
+            "bg-[#0a0a0a] border border-[rgba(168,162,158,0.1)] rounded-sm p-8 shadow-2xl",
+            "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-500",
             className
           )}
           onClick={(e) => e.stopPropagation()}
           {...props}
         >
+          {/* Gradient line accent at top */}
+          <div className="absolute top-0 left-6 right-6 h-px gradient-line" />
+
           {children}
           <button
             onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="absolute right-4 top-4 rounded-sm p-2 text-[#78716c] transition-all duration-500 hover:bg-[rgba(168,162,158,0.1)] hover:text-[#a8a29e]"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
@@ -143,7 +146,7 @@ const DialogFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     <div
       ref={ref}
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -156,8 +159,7 @@ const DialogTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEle
   ({ className, ...props }, ref) => (
     <h2
       ref={ref}
-      className={cn("text-2xl font-semibold tracking-tight", className)}
-      style={{ fontFamily: "var(--font-display)" }}
+      className={cn("font-display text-xl text-[#fafaf9] tracking-tight italic", className)}
       {...props}
     />
   )
@@ -168,7 +170,7 @@ const DialogDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPa
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm text-[#78716c] tracking-wide", className)}
       {...props}
     />
   )
