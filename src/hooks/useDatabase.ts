@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import Database from "@tauri-apps/plugin-sql";
 import type { Habit, Completion, TargetType, Goal, Achievement } from "@/types";
 import { useHabitStore } from "@/store/useHabitStore";
+import { DATABASE, WEEK_DAYS_PT, HABIT_DEFAULTS } from "@/lib/constants";
 
 interface DbHabit {
   id: number;
@@ -69,10 +70,10 @@ const mapDbHabit = (row: DbHabit): Habit => ({
   frequency: row.frequency as Habit["frequency"],
   streak: row.streak,
   createdAt: row.created_at,
-  icon: row.icon ?? "star",
-  color: row.color ?? "#8B5CF6",
-  targetType: (row.target_type as TargetType) ?? "boolean",
-  targetValue: row.target_value ?? 1,
+  icon: row.icon ?? HABIT_DEFAULTS.ICON,
+  color: row.color ?? HABIT_DEFAULTS.COLOR,
+  targetType: (row.target_type as TargetType) ?? HABIT_DEFAULTS.TARGET_TYPE,
+  targetValue: row.target_value ?? HABIT_DEFAULTS.TARGET_VALUE,
   targetUnit: row.target_unit ?? undefined,
   bestStreak: row.best_streak ?? 0,
 });
@@ -92,14 +93,7 @@ export function useDatabase() {
 
   const getDb = useCallback(async (): Promise<Database> => {
     if (!dbRef.current) {
-      console.log("[Database] Loading database...");
-      try {
-        dbRef.current = await Database.load("sqlite:habits.db");
-        console.log("[Database] Database loaded successfully");
-      } catch (err) {
-        console.error("[Database] Failed to load database:", err);
-        throw err;
-      }
+      dbRef.current = await Database.load(DATABASE.NAME);
     }
     return dbRef.current;
   }, []);
@@ -153,22 +147,19 @@ export function useDatabase() {
       }
     ): Promise<Habit | null> => {
       try {
-        console.log("[Database] Creating habit:", name, frequency, options);
         const db = await getDb();
-        console.log("[Database] Got db connection");
 
-        const targetType = options?.targetType ?? "boolean";
-        const targetValue = options?.targetValue ?? 1;
+        const targetType = options?.targetType ?? HABIT_DEFAULTS.TARGET_TYPE;
+        const targetValue = options?.targetValue ?? HABIT_DEFAULTS.TARGET_VALUE;
         const targetUnit = options?.targetUnit ?? null;
-        const icon = options?.icon ?? "star";
-        const color = options?.color ?? "#8B5CF6";
+        const icon = options?.icon ?? HABIT_DEFAULTS.ICON;
+        const color = options?.color ?? HABIT_DEFAULTS.COLOR;
 
         const result = await db.execute(
           `INSERT INTO habits (name, frequency, target_type, target_value, target_unit, icon, color)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [name, frequency, targetType, targetValue, targetUnit, icon, color]
         );
-        console.log("[Database] Insert result:", result);
 
         const newHabit: Habit = {
           id: result.lastInsertId ?? 0,
@@ -185,10 +176,8 @@ export function useDatabase() {
         };
 
         addHabit(newHabit);
-        console.log("[Database] Habit created successfully:", newHabit);
         return newHabit;
       } catch (err) {
-        console.error("[Database] Failed to create habit:", err);
         setError(err instanceof Error ? err.message : "Failed to create habit");
         return null;
       }
@@ -537,25 +526,36 @@ export function useDatabase() {
     async (habitId: number): Promise<{ label: string; value: number }[]> => {
       try {
         const db = await getDb();
-        const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-        const result: { label: string; value: number }[] = [];
 
-        // Get last 7 days
+        // Calculate date range
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 6);
+        const startDateStr = startDate.toISOString().split("T")[0];
+        const endDateStr = today.toISOString().split("T")[0];
+
+        // Single query for all 7 days
+        const rows = await db.select<{ date: string; value: number }[]>(
+          `SELECT date, COALESCE(SUM(value), 0) as value FROM completions
+           WHERE habit_id = ? AND date BETWEEN ? AND ?
+           GROUP BY date`,
+          [habitId, startDateStr, endDateStr]
+        );
+
+        // Create a map for quick lookup
+        const valuesByDate = new Map(rows.map(r => [r.date, r.value]));
+
+        // Build result array for last 7 days
+        const result: { label: string; value: number }[] = [];
         for (let i = 6; i >= 0; i--) {
-          const date = new Date();
+          const date = new Date(today);
           date.setDate(date.getDate() - i);
           const dateStr = date.toISOString().split("T")[0];
-          const dayLabel = days[date.getDay()];
-
-          const rows = await db.select<{ value: number }[]>(
-            `SELECT COALESCE(SUM(value), 0) as value FROM completions
-             WHERE habit_id = ? AND date = ?`,
-            [habitId, dateStr]
-          );
+          const dayLabel = WEEK_DAYS_PT[date.getDay()];
 
           result.push({
             label: dayLabel,
-            value: rows[0]?.value ?? 0,
+            value: valuesByDate.get(dateStr) ?? 0,
           });
         }
 
@@ -881,24 +881,18 @@ export function useDatabase() {
       const db = await getDb();
       const today = new Date().toISOString().split("T")[0];
 
-      const allHabits = await db.select<{ id: number; target_type: string; target_value: number }[]>(
-        `SELECT id, target_type, target_value FROM habits`
+      // Single query to check if all habits are completed today
+      const result = await db.select<{ total_habits: number; completed_habits: number }[]>(
+        `SELECT
+          (SELECT COUNT(*) FROM habits) as total_habits,
+          (SELECT COUNT(DISTINCT h.id) FROM habits h
+           INNER JOIN completions c ON c.habit_id = h.id AND c.date = ?
+           WHERE COALESCE(c.value, 1) >= COALESCE(h.target_value, 1)) as completed_habits`,
+        [today]
       );
 
-      if (allHabits.length === 0) return false;
-
-      for (const habit of allHabits) {
-        const completion = await db.select<{ value: number }[]>(
-          `SELECT COALESCE(SUM(value), 0) as value FROM completions WHERE habit_id = ? AND date = ?`,
-          [habit.id, today]
-        );
-        const value = completion[0]?.value ?? 0;
-        const target = habit.target_value ?? 1;
-
-        if (value < target) return false;
-      }
-
-      return true;
+      const { total_habits, completed_habits } = result[0] ?? { total_habits: 0, completed_habits: 0 };
+      return total_habits > 0 && completed_habits >= total_habits;
     } catch (err) {
       return false;
     }
@@ -907,27 +901,51 @@ export function useDatabase() {
   const getConsecutivePerfectDays = useCallback(async (): Promise<number> => {
     try {
       const db = await getDb();
+
+      // Get all habits with their targets
       const allHabits = await db.select<{ id: number; target_value: number }[]>(
-        `SELECT id, target_value FROM habits`
+        `SELECT id, COALESCE(target_value, 1) as target_value FROM habits`
       );
 
       if (allHabits.length === 0) return 0;
 
+      const habitCount = allHabits.length;
+      const habitTargets = new Map(allHabits.map(h => [h.id, h.target_value]));
+
+      // Fetch all completions for last N days in a single query
+      const completions = await db.select<{ habit_id: number; date: string; total_value: number }[]>(
+        `SELECT habit_id, date, COALESCE(SUM(value), 1) as total_value
+         FROM completions
+         WHERE date >= date('now', '-${DATABASE.MAX_DAYS_HISTORY} days')
+         GROUP BY habit_id, date
+         ORDER BY date DESC`
+      );
+
+      // Group completions by date
+      const completionsByDate = new Map<string, Map<number, number>>();
+      for (const c of completions) {
+        if (!completionsByDate.has(c.date)) {
+          completionsByDate.set(c.date, new Map());
+        }
+        completionsByDate.get(c.date)!.set(c.habit_id, c.total_value);
+      }
+
+      // Count consecutive perfect days
       let consecutiveDays = 0;
       const today = new Date();
 
-      for (let i = 0; i < 365; i++) {
+      for (let i = 0; i < DATABASE.MAX_DAYS_HISTORY; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0];
 
+        const dayCompletions = completionsByDate.get(dateStr);
+
+        // Check if all habits completed their target for this day
         let allCompleted = true;
-        for (const habit of allHabits) {
-          const completion = await db.select<{ value: number }[]>(
-            `SELECT COALESCE(SUM(value), 0) as value FROM completions WHERE habit_id = ? AND date = ?`,
-            [habit.id, dateStr]
-          );
-          if ((completion[0]?.value ?? 0) < (habit.target_value ?? 1)) {
+        for (const [habitId, targetValue] of habitTargets) {
+          const completedValue = dayCompletions?.get(habitId) ?? 0;
+          if (completedValue < targetValue) {
             allCompleted = false;
             break;
           }

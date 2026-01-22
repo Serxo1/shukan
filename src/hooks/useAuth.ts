@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
+import { authLogger as log } from '@/lib/debug'
 import type { Profile, ProfileUpdate } from '@/types/database'
 
 export function useAuth() {
@@ -38,7 +39,7 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] State changed:', event)
+        log.debug('[Auth] State changed:', event)
         setSession(session)
         setUser(session?.user ?? null)
 
@@ -60,7 +61,7 @@ export function useAuth() {
       return
     }
 
-    console.log('[Auth] Fetching profile for:', userId)
+    log.debug('[Auth] Fetching profile for:', userId)
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) =>
@@ -76,18 +77,18 @@ export function useAuth() {
 
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as Awaited<typeof fetchPromise>
 
-      console.log('[Auth] Profile response:', { data, error })
+      log.debug('[Auth] Profile response:', { data, error })
 
       if (error) {
-        console.error('[Auth] Profile fetch error:', error.message, error.code)
+        log.error('[Auth] Profile fetch error:', error.message, error.code)
         // Profile might not exist yet, that's ok
       } else {
         setProfile(data as Profile)
       }
     } catch (error) {
-      console.error('[Auth] Error fetching profile:', error)
+      log.error('[Auth] Error fetching profile:', error)
     } finally {
-      console.log('[Auth] Setting loading to false')
+      log.debug('[Auth] Setting loading to false')
       setLoading(false)
     }
   }

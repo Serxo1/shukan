@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDatabase } from '@/hooks/useDatabase'
+import { syncLogger as log } from '@/lib/debug'
 import type { CloudHabit, CloudHabitInsert } from '@/types/database'
 import type { Habit } from '@/types'
 
@@ -46,7 +47,7 @@ export function useCloudSync() {
       .single()
 
     if (error) {
-      console.error('[CloudSync] Upload error:', error)
+      log.error('[CloudSync] Upload error:', error)
       throw error
     }
 
@@ -69,7 +70,7 @@ export function useCloudSync() {
       .single()
 
     if (error) {
-      console.error('[CloudSync] Completion upload error:', error)
+      log.error('[CloudSync] Completion upload error:', error)
       throw error
     }
 
@@ -79,12 +80,12 @@ export function useCloudSync() {
   // Full sync: upload all local habits to cloud (avoiding duplicates)
   const syncToCloud = useCallback(async () => {
     if (!supabase || !user || !isAuthenticated) {
-      console.log('[CloudSync] Skipping sync - not authenticated')
+      log.debug('[CloudSync] Skipping sync - not authenticated')
       return
     }
 
     if (syncInProgress.current) {
-      console.log('[CloudSync] Sync already in progress')
+      log.debug('[CloudSync] Sync already in progress')
       return
     }
 
@@ -94,7 +95,7 @@ export function useCloudSync() {
 
     try {
       const localHabits = await getHabits()
-      console.log('[CloudSync] Syncing', localHabits.length, 'habits to cloud')
+      log.debug('[CloudSync] Syncing', localHabits.length, 'habits to cloud')
 
       // Fetch existing cloud habits first
       const { data: existingHabits } = await supabase
@@ -112,7 +113,7 @@ export function useCloudSync() {
 
         if (existingId) {
           // Update existing habit
-          console.log('[CloudSync] Updating existing habit:', habit.name)
+          log.debug('[CloudSync] Updating existing habit:', habit.name)
           await supabase
             .from('habits')
             .update({
@@ -124,15 +125,15 @@ export function useCloudSync() {
             .eq('id', existingId)
         } else {
           // Insert new habit
-          console.log('[CloudSync] Creating new habit:', habit.name)
+          log.debug('[CloudSync] Creating new habit:', habit.name)
           await uploadHabit(habit)
         }
       }
 
       setLastSyncAt(new Date())
-      console.log('[CloudSync] Sync complete')
+      log.debug('[CloudSync] Sync complete')
     } catch (error) {
-      console.error('[CloudSync] Sync failed:', error)
+      log.error('[CloudSync] Sync failed:', error)
       setSyncError(error instanceof Error ? error.message : 'Sync failed')
     } finally {
       setIsSyncing(false)
@@ -151,7 +152,7 @@ export function useCloudSync() {
       .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('[CloudSync] Fetch error:', error)
+      log.error('[CloudSync] Fetch error:', error)
       throw error
     }
 
@@ -170,7 +171,7 @@ export function useCloudSync() {
       .order('streak', { ascending: false })
 
     if (error) {
-      console.error('[CloudSync] Fetch friend habits error:', error)
+      log.error('[CloudSync] Fetch friend habits error:', error)
       throw error
     }
 
@@ -187,7 +188,7 @@ export function useCloudSync() {
       .eq('id', habitCloudId)
 
     if (error) {
-      console.error('[CloudSync] Category update error:', error)
+      log.error('[CloudSync] Category update error:', error)
       throw error
     }
   }, [])
@@ -230,7 +231,7 @@ export function useCloudSync() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('[CloudSync] Realtime update:', payload)
+          log.debug('[CloudSync] Realtime update:', payload)
         }
       )
       .subscribe()

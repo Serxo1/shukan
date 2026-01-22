@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Orb } from "@/components/ui/orb";
@@ -14,12 +14,13 @@ import { useDatabase } from "@/hooks/useDatabase";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
+import { WINDOW_SIZES, TIMING } from "@/lib/constants";
 
 const hideWindow = async () => {
   try {
     await getCurrentWindow().hide();
-  } catch (e) {
-    console.error("[SpotlightInterface] Failed to hide window:", e);
+  } catch {
+    // Silent fail - window hide is best effort
   }
 };
 
@@ -95,21 +96,17 @@ export function SpotlightInterface() {
 
   const handleTranscription = useCallback(
     async (result: { text: string; isFinal: boolean }) => {
-      console.log("[SpotlightInterface] handleTranscription:", result);
       if (result.isFinal && result.text) {
-        console.log("[SpotlightInterface] Final transcript, starting processing...");
         setLastTranscript(result.text);
         disconnectOpenAI();
         setIsProcessingAgent(true);
 
         try {
           const res = await processUserInput(result.text);
-          console.log("[SpotlightInterface] Agent response:", res.message);
           setResponse(res.message);
           const c = await getTodayCompletions();
           setCompletedIds(new Set(c.map((x) => x.habitId)));
         } finally {
-          console.log("[SpotlightInterface] Processing complete, setting isProcessingAgent to false");
           setIsProcessingAgent(false);
         }
       }
@@ -175,39 +172,28 @@ export function SpotlightInterface() {
   }, [handleTextSubmit]);
 
   const showResponse = response && !isActive && !isProcessing;
-  const completedCount = habits.filter((h) => completedIds.has(h.id)).length;
-
-  // Debug logging
-  useEffect(() => {
-    console.log("[SpotlightInterface] State:", {
-      response: response ? response.substring(0, 50) + "..." : null,
-      isActive,
-      isProcessing,
-      showResponse,
-      lastTranscript,
-    });
-  }, [response, isActive, isProcessing, showResponse, lastTranscript]);
+  const completedCount = useMemo(
+    () => habits.filter((h) => completedIds.has(h.id)).length,
+    [habits, completedIds]
+  );
 
   // Resize window based on content
   useEffect(() => {
     const resizeWindow = async () => {
-      console.log("[SpotlightInterface] Resize check - showResponse:", showResponse, "widget:", !!activeWidget);
       try {
         const window = getCurrentWindow();
-        const baseHeight = 64;
 
         if ((showResponse || activeWidget) && containerRef.current) {
           // Wait for the animation to complete and measure
-          await new Promise(resolve => setTimeout(resolve, 250));
+          await new Promise(resolve => setTimeout(resolve, TIMING.WINDOW_RESIZE_DELAY_MS));
           const contentHeight = containerRef.current.scrollHeight;
-          const newHeight = Math.min(contentHeight + 32, 600);
-          console.log("[SpotlightInterface] Resizing to:", newHeight, "content:", contentHeight);
-          await window.setSize(new LogicalSize(500, newHeight));
+          const newHeight = Math.min(contentHeight + 32, WINDOW_SIZES.ORB_EXPANDED_MAX_HEIGHT);
+          await window.setSize(new LogicalSize(WINDOW_SIZES.ORB.width, newHeight));
         } else {
-          await window.setSize(new LogicalSize(500, baseHeight));
+          await window.setSize(new LogicalSize(WINDOW_SIZES.ORB.width, WINDOW_SIZES.ORB.height));
         }
-      } catch (e) {
-        console.error("[SpotlightInterface] Resize error:", e);
+      } catch {
+        // Silent fail - resize is best effort
       }
     };
 

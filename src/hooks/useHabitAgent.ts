@@ -7,6 +7,7 @@ import { useDatabase } from "@/hooks/useDatabase";
 import { useSpeech } from "@/hooks/useSpeech";
 import { ACHIEVEMENTS, HABIT_ICONS } from "@/lib/achievements";
 import { callChatEdgeFunction } from "@/lib/edge-functions";
+import { agentLogger as log } from "@/lib/debug";
 import type { Habit, TargetType } from "@/types";
 
 interface ConversationMessage {
@@ -484,7 +485,7 @@ export function useHabitAgent() {
       const { name, arguments: argsStr } = toolCall.function;
       const args = JSON.parse(argsStr);
 
-      console.log("[Agent] Executing tool:", name, args);
+      log.debug("[Agent] Executing tool:", name, args);
 
       switch (name) {
         case "criar_habito": {
@@ -977,7 +978,7 @@ export function useHabitAgent() {
 
   const clearConversation = useCallback(() => {
     conversationRef.current = [];
-    console.log("[Agent] Conversation cleared");
+    log.debug("[Agent] Conversation cleared");
   }, []);
 
   const processUserInput = useCallback(
@@ -993,13 +994,13 @@ export function useHabitAgent() {
         };
       }
 
-      console.log("[Agent] Processing input:", userInput, "| Using Edge Functions:", useEdgeFunctions);
+      log.debug("[Agent] Processing input:", userInput, "| Using Edge Functions:", useEdgeFunctions);
 
       // Check if conversation timed out
       const now = Date.now();
       if (now - lastInteractionRef.current > CONVERSATION_TIMEOUT_MS) {
         conversationRef.current = [];
-        console.log("[Agent] Conversation reset due to timeout");
+        log.debug("[Agent] Conversation reset due to timeout");
       }
       lastInteractionRef.current = now;
 
@@ -1024,7 +1025,7 @@ export function useHabitAgent() {
           ...conversationRef.current,
         ];
 
-        console.log("[Agent] Conversation history:", conversationRef.current.length, "messages");
+        log.debug("[Agent] Conversation history:", conversationRef.current.length, "messages");
 
         // First API call - use Edge Function or direct API
         let result;
@@ -1055,7 +1056,7 @@ export function useHabitAgent() {
 
           if (!response.ok) {
             const error = await response.json();
-            console.error("[Agent] API error:", error);
+            log.error("[Agent] API error:", error);
             return {
               success: false,
               message: "Erro ao processar com IA",
@@ -1067,7 +1068,7 @@ export function useHabitAgent() {
 
         let assistantMessage = result.choices[0].message;
 
-        console.log("[Agent] Initial response:", assistantMessage);
+        log.debug("[Agent] Initial response:", assistantMessage);
 
         // Track messages for this turn (for tool calls)
         const turnMessages = [...messages];
@@ -1103,7 +1104,7 @@ export function useHabitAgent() {
                 max_tokens: 500,
               });
             } catch (err) {
-              console.error("[Agent] Continued Edge Function error:", err);
+              log.error("[Agent] Continued Edge Function error:", err);
               break;
             }
           } else {
@@ -1124,7 +1125,7 @@ export function useHabitAgent() {
             });
 
             if (!continuedResponse.ok) {
-              console.error("[Agent] Continued API error");
+              log.error("[Agent] Continued API error");
               break;
             }
 
@@ -1134,7 +1135,7 @@ export function useHabitAgent() {
           result = continuedResult;
           assistantMessage = result.choices[0].message;
 
-          console.log("[Agent] Continued response:", assistantMessage);
+          log.debug("[Agent] Continued response:", assistantMessage);
         }
 
         const finalMessage = assistantMessage.content || "Tarefa concluída!";
@@ -1147,7 +1148,7 @@ export function useHabitAgent() {
           conversationRef.current = conversationRef.current.slice(-20);
         }
 
-        console.log("[Agent] Conversation now has", conversationRef.current.length, "messages");
+        log.debug("[Agent] Conversation now has", conversationRef.current.length, "messages");
 
         // Speak the response
         speak(finalMessage);
@@ -1157,7 +1158,7 @@ export function useHabitAgent() {
           message: finalMessage,
         };
       } catch (error) {
-        console.error("[Agent] Error:", error);
+        log.error("[Agent] Error:", error);
         // Remove the failed user message from history
         conversationRef.current.pop();
         return {
