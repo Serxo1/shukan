@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const { profile, signOut, isAuthenticated, updateProfile, uploadAvatar } = useAuth();
   const { habits } = useHabitStore();
   const { createHabit, deleteHabit, completeHabit, getTodayCompletions, getCompletionsForDateRange, getAchievements } = useDatabase();
-  const { isSyncing } = useCloudSync();
+  const { isSyncing, syncHabit, uploadCompletion } = useCloudSync();
 
   const [newHabitName, setNewHabitName] = useState("");
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
@@ -82,8 +82,12 @@ export default function DashboardPage() {
 
   const handleAddHabit = async () => {
     if (newHabitName.trim()) {
-      await createHabit(newHabitName.trim());
+      const habit = await createHabit(newHabitName.trim());
       setNewHabitName("");
+      // Sync to cloud immediately after creating
+      if (habit) {
+        syncHabit(habit);
+      }
     }
   };
 
@@ -91,6 +95,13 @@ export default function DashboardPage() {
     if (!completedIds.has(habitId)) {
       await completeHabit(habitId);
       setCompletedIds((prev) => new Set([...prev, habitId]));
+
+      // Sync completion to cloud
+      const habit = habits.find((h) => h.id === habitId);
+      if (habit?.cloudId) {
+        const today = new Date().toISOString().split("T")[0];
+        uploadCompletion(habit.cloudId, today, 1);
+      }
     }
   };
 

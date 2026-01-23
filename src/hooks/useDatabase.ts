@@ -16,6 +16,7 @@ interface DbHabit {
   target_value: number | null;
   target_unit: string | null;
   best_streak: number | null;
+  cloud_id: string | null;
 }
 
 interface DbCompletion {
@@ -76,6 +77,7 @@ const mapDbHabit = (row: DbHabit): Habit => ({
   targetValue: row.target_value ?? HABIT_DEFAULTS.TARGET_VALUE,
   targetUnit: row.target_unit ?? undefined,
   bestStreak: row.best_streak ?? 0,
+  cloudId: row.cloud_id ?? undefined,
 });
 
 const mapDbCompletion = (row: DbCompletion): Completion => ({
@@ -431,6 +433,133 @@ export function useDatabase() {
       }
     },
     [getDb, setError]
+  );
+
+  // Create habit from cloud data (for cloud -> local sync)
+  const createHabitFromCloud = useCallback(
+    async (cloudHabit: {
+      cloud_id: string;
+      name: string;
+      frequency: string;
+      streak: number;
+      best_streak: number;
+      icon: string;
+      color: string;
+      target_type: string;
+      target_value: number;
+      target_unit?: string | null;
+      created_at: string;
+    }): Promise<Habit | null> => {
+      try {
+        const db = await getDb();
+
+        const result = await db.execute(
+          `INSERT INTO habits (name, frequency, streak, best_streak, icon, color, target_type, target_value, target_unit, cloud_id, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            cloudHabit.name,
+            cloudHabit.frequency,
+            cloudHabit.streak,
+            cloudHabit.best_streak,
+            cloudHabit.icon,
+            cloudHabit.color,
+            cloudHabit.target_type,
+            cloudHabit.target_value,
+            cloudHabit.target_unit ?? null,
+            cloudHabit.cloud_id,
+            cloudHabit.created_at,
+          ]
+        );
+
+        const newHabit: Habit = {
+          id: result.lastInsertId ?? 0,
+          name: cloudHabit.name,
+          frequency: cloudHabit.frequency as Habit["frequency"],
+          streak: cloudHabit.streak,
+          createdAt: cloudHabit.created_at,
+          icon: cloudHabit.icon,
+          color: cloudHabit.color,
+          targetType: cloudHabit.target_type as TargetType,
+          targetValue: cloudHabit.target_value,
+          targetUnit: cloudHabit.target_unit ?? undefined,
+          bestStreak: cloudHabit.best_streak,
+          cloudId: cloudHabit.cloud_id,
+        };
+
+        addHabit(newHabit);
+        return newHabit;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create habit from cloud");
+        return null;
+      }
+    },
+    [getDb, addHabit, setError]
+  );
+
+  // Update local habit's cloud_id after uploading to cloud
+  const updateHabitCloudId = useCallback(
+    async (habitId: number, cloudId: string): Promise<boolean> => {
+      try {
+        const db = await getDb();
+        await db.execute("UPDATE habits SET cloud_id = ? WHERE id = ?", [cloudId, habitId]);
+        updateHabit(habitId, { cloudId });
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update cloud_id");
+        return false;
+      }
+    },
+    [getDb, updateHabit, setError]
+  );
+
+  // Get habit by cloud_id
+  const getHabitByCloudId = useCallback(
+    async (cloudId: string): Promise<Habit | null> => {
+      try {
+        const db = await getDb();
+        const rows = await db.select<DbHabit[]>(
+          "SELECT * FROM habits WHERE cloud_id = ?",
+          [cloudId]
+        );
+        return rows.length > 0 ? mapDbHabit(rows[0]) : null;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get habit by cloud_id");
+        return null;
+      }
+    },
+    [getDb, setError]
+  );
+
+  // Update habit from cloud data (for cloud -> local sync)
+  const updateHabitFromCloud = useCallback(
+    async (
+      habitId: number,
+      cloudData: {
+        streak: number;
+        best_streak: number;
+        icon: string;
+        color: string;
+      }
+    ): Promise<boolean> => {
+      try {
+        const db = await getDb();
+        await db.execute(
+          `UPDATE habits SET streak = ?, best_streak = ?, icon = ?, color = ? WHERE id = ?`,
+          [cloudData.streak, cloudData.best_streak, cloudData.icon, cloudData.color, habitId]
+        );
+        updateHabit(habitId, {
+          streak: cloudData.streak,
+          bestStreak: cloudData.best_streak,
+          icon: cloudData.icon,
+          color: cloudData.color,
+        });
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update habit from cloud");
+        return false;
+      }
+    },
+    [getDb, updateHabit, setError]
   );
 
   const getHabitStats = useCallback(
@@ -909,7 +1038,7 @@ export function useDatabase() {
 
       if (allHabits.length === 0) return 0;
 
-      const habitCount = allHabits.length;
+      // habitCount available as allHabits.length if needed
       const habitTargets = new Map(allHabits.map(h => [h.id, h.target_value]));
 
       // Fetch all completions for last N days in a single query
@@ -1002,5 +1131,10 @@ export function useDatabase() {
     // Stats helpers
     getAllHabitsCompletedToday,
     getConsecutivePerfectDays,
+    // Cloud sync helpers
+    createHabitFromCloud,
+    updateHabitCloudId,
+    getHabitByCloudId,
+    updateHabitFromCloud,
   };
 }

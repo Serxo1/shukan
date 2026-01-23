@@ -4,6 +4,7 @@ import { useHabitStore } from "@/store/useHabitStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useWidgetStore } from "@/store/useWidgetStore";
 import { useDatabase } from "@/hooks/useDatabase";
+import { useCloudSync } from "@/hooks/useCloudSync";
 import { useSpeech } from "@/hooks/useSpeech";
 import { ACHIEVEMENTS, HABIT_ICONS } from "@/lib/achievements";
 import { callChatEdgeFunction } from "@/lib/edge-functions";
@@ -286,6 +287,7 @@ export function useHabitAgent() {
     getConsecutivePerfectDays,
     getFrequencyProgress,
   } = useDatabase();
+  const { syncHabit, uploadCompletion } = useCloudSync();
   const { speak } = useSpeech();
 
   // Conversation memory
@@ -514,6 +516,9 @@ export function useHabitAgent() {
 
           const habit = await createHabit(habitName, frequency, options);
           if (habit) {
+            // Sync to cloud immediately after creating
+            syncHabit(habit);
+
             // Check for achievements
             await checkAchievements({ type: "habit_created", habitId: habit.id });
 
@@ -553,6 +558,12 @@ export function useHabitAgent() {
 
           const result = await completeHabit(habit.id);
           if (result.success) {
+            // Sync completion to cloud
+            if (habit.cloudId) {
+              const today = new Date().toISOString().split("T")[0];
+              uploadCompletion(habit.cloudId, today, 1);
+            }
+
             const newStreak = result.streak;
             const isMilestone = newStreak === 7 || newStreak === 30 || newStreak === 100;
 
@@ -608,6 +619,12 @@ export function useHabitAgent() {
 
           const valor = args.valor;
           const result = await logProgress(habit.id, valor);
+
+          // Sync progress to cloud
+          if (habit.cloudId) {
+            const today = new Date().toISOString().split("T")[0];
+            uploadCompletion(habit.cloudId, today, result.current);
+          }
 
           // If completed, show celebration; otherwise show progress
           if (result.isComplete) {

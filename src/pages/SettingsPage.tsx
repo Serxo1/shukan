@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSettingsStore, ELEVENLABS_VOICES, type VoiceId } from "@/store/useSettingsStore";
 import { useSettingsSync } from "@/hooks/useSettingsSync";
 import { useDatabase } from "@/hooks/useDatabase";
+import { useCloudSync } from "@/hooks/useCloudSync";
 import { useHabitStore } from "@/store/useHabitStore";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +46,7 @@ export default function SettingsPage() {
 
   const { habits } = useHabitStore();
   const { createHabit, deleteHabit } = useDatabase();
+  const { syncHabit } = useCloudSync();
 
   useEffect(() => {
     setLocalOpenAIKey(openaiApiKey || "");
@@ -93,8 +95,12 @@ export default function SettingsPage() {
 
   const handleAddHabit = async () => {
     if (newHabitName.trim()) {
-      await createHabit(newHabitName.trim());
+      const habit = await createHabit(newHabitName.trim());
       setNewHabitName("");
+      // Sync to cloud immediately after creating
+      if (habit) {
+        syncHabit(habit);
+      }
     }
   };
 

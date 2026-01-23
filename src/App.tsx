@@ -99,10 +99,7 @@ function App() {
   return (
     <div className="w-full h-full bg-transparent">
       {/* Main content - fills window exactly */}
-      <div
-        className="w-full h-full"
-        data-tauri-drag-region
-      >
+      <div className="w-full h-full">
         <SpotlightInterface />
       </div>
 

@@ -49,6 +49,20 @@ export function SpotlightInterface() {
   const isActive = voice.isListening || isConnected;
   const isProcessing = isProcessingAgent;
 
+  // Ensure window has no decorations (workaround for Tauri v2 Windows bug)
+  useEffect(() => {
+    const applyWindowFixes = async () => {
+      try {
+        const window = getCurrentWindow();
+        await window.setDecorations(false);
+        await window.setShadow(false);
+      } catch {
+        // Silent fail - window fixes are best effort
+      }
+    };
+    applyWindowFixes();
+  }, []);
+
   // Load completions
   useEffect(() => {
     getTodayCompletions().then((c) => setCompletedIds(new Set(c.map((x) => x.habitId))));
@@ -209,10 +223,10 @@ export function SpotlightInterface() {
   };
 
   return (
-    <div ref={containerRef} className="w-full flex flex-col overflow-hidden">
+    <div ref={containerRef} className="w-full h-full flex flex-col overflow-hidden bg-neutral-900 rounded-xl border border-white/[0.08]">
       {/* Main bar */}
       <div
-        className="group flex items-center gap-3 px-3 py-2 mx-2 rounded-xl bg-neutral-900 border border-white/[0.08] relative"
+        className="group flex items-center gap-3 px-3 py-2 bg-neutral-900 relative"
       >
         {/* Close button - appears on hover */}
         <button
@@ -357,9 +371,9 @@ export function SpotlightInterface() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden mx-2 mt-2"
+            className="overflow-hidden mt-2 px-3"
           >
-            <div className="px-4 py-3 rounded-xl bg-neutral-900 border border-white/[0.08]">
+            <div className="px-4 py-3 rounded-xl bg-neutral-800 border border-white/[0.08]">
               <p className="text-white/80 text-[13px] leading-relaxed">
                 {response}
               </p>
@@ -388,7 +402,7 @@ export function SpotlightInterface() {
       </AnimatePresence>
 
       {/* Widget area */}
-      <div className="mx-2">
+      <div className="px-3">
         <WidgetRenderer widget={activeWidget} onDismiss={dismissWidget} />
       </div>
 
@@ -399,7 +413,7 @@ export function SpotlightInterface() {
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mx-2 mt-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20"
+            className="mt-2 mx-3 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20"
           >
             <p className="text-red-400/80 text-xs">{voice.error}</p>
           </motion.div>

@@ -10,8 +10,8 @@ import type { Profile } from "@/types/database";
 interface SettingsTabProps {
   isAuthenticated: boolean;
   profile: Profile | null;
-  onUpdateProfile: (updates: Partial<Profile>) => Promise<void>;
-  onUploadAvatar: (file: File) => Promise<void>;
+  onUpdateProfile: (updates: Partial<Profile>) => Promise<Profile | void>;
+  onUploadAvatar: (file: File) => Promise<Profile | void>;
 }
 
 export const SettingsTab = memo(function SettingsTab({

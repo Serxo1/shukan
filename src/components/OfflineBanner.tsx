@@ -14,7 +14,7 @@ export function OfflineBanner({ onDismiss }: OfflineBannerProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.5 }}
-      className="mx-2 mb-2 px-4 py-3 rounded-sm bg-[#0a0a0a] border border-[rgba(181,162,125,0.2)]"
+      className="mx-3 mb-2 px-4 py-3 rounded-sm bg-[#0a0a0a] border border-[rgba(181,162,125,0.2)]"
     >
       <div className="flex items-start gap-3">
         <svg

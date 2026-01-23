@@ -27,15 +27,20 @@ function toCloudHabit(habit: Habit, userId: string, categoryId: number = 9): Clo
 
 export function useCloudSync() {
   const { user, isAuthenticated } = useAuthStore()
-  const { getHabits } = useDatabase()
+  const {
+    getHabits,
+    createHabitFromCloud,
+    updateHabitCloudId,
+    updateHabitFromCloud,
+  } = useDatabase()
 
   const [isSyncing, setIsSyncing] = useState(false)
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const syncInProgress = useRef(false)
 
-  // Upload local habit to cloud
-  const uploadHabit = useCallback(async (habit: Habit, categoryId?: number) => {
+  // Upload local habit to cloud and return cloud habit with ID
+  const uploadHabit = useCallback(async (habit: Habit, categoryId?: number): Promise<CloudHabit | null> => {
     if (!supabase || !user) return null
 
     const cloudHabit = toCloudHabit(habit, user.id, categoryId)
@@ -51,8 +56,13 @@ export function useCloudSync() {
       throw error
     }
 
+    // Update local habit with cloud_id if not set
+    if (!habit.cloudId && data?.id) {
+      await updateHabitCloudId(habit.id, data.id)
+    }
+
     return data as CloudHabit
-  }, [user])
+  }, [user, updateHabitCloudId])
 
   // Upload completion to cloud
   const uploadCompletion = useCallback(async (habitCloudId: string, date: string, value: number = 1) => {
@@ -79,10 +89,181 @@ export function useCloudSync() {
     return data
   }, [user])
 
-  // Full sync: upload all local habits to cloud (avoiding duplicates)
+  // Sync FROM cloud to local (Cloud -> Local)
+  const syncFromCloud = useCallback(async () => {
+    if (!supabase || !user || !isAuthenticated) {
+      log.debug('[CloudSync] Skipping syncFromCloud - not authenticated')
+      return
+    }
+
+    log.debug('[CloudSync] Starting sync from cloud...')
+
+    try {
+      // Fetch all cloud habits for this user
+      const { data: cloudHabits, error } = await supabase
+        .from('habits')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        log.error('[CloudSync] Error fetching cloud habits:', error)
+        throw error
+      }
+
+      if (!cloudHabits || cloudHabits.length === 0) {
+        log.debug('[CloudSync] No cloud habits found')
+        return
+      }
+
+      log.debug('[CloudSync] Found', cloudHabits.length, 'cloud habits')
+
+      // Get local habits to compare
+      const localHabits = await getHabits()
+      const localByCloudId = new Map(
+        localHabits.filter(h => h.cloudId).map(h => [h.cloudId!, h])
+      )
+      const localByName = new Map(
+        localHabits.map(h => [h.name.toLowerCase(), h])
+      )
+
+      for (const cloudHabit of cloudHabits) {
+        // Check if we already have this habit by cloud_id
+        const existingByCloudId = localByCloudId.get(cloudHabit.id)
+
+        if (existingByCloudId) {
+          // Update local habit if cloud has higher streak or more recent data
+          const cloudStreak = cloudHabit.streak ?? 0
+          const cloudBestStreak = cloudHabit.best_streak ?? 0
+          if (cloudStreak > existingByCloudId.streak ||
+              cloudBestStreak > existingByCloudId.bestStreak) {
+            log.debug('[CloudSync] Updating local habit from cloud:', cloudHabit.name)
+            await updateHabitFromCloud(existingByCloudId.id, {
+              streak: Math.max(cloudStreak, existingByCloudId.streak),
+              best_streak: Math.max(cloudBestStreak, existingByCloudId.bestStreak),
+              icon: cloudHabit.icon || existingByCloudId.icon,
+              color: cloudHabit.color || existingByCloudId.color,
+            })
+          }
+          continue
+        }
+
+        // Check if we have this habit by name (no cloud_id set yet)
+        const existingByName = localByName.get(cloudHabit.name.toLowerCase())
+
+        if (existingByName && !existingByName.cloudId) {
+          // Link existing local habit to cloud and update
+          log.debug('[CloudSync] Linking local habit to cloud:', cloudHabit.name)
+          const cloudStreak = cloudHabit.streak ?? 0
+          const cloudBestStreak = cloudHabit.best_streak ?? 0
+          await updateHabitCloudId(existingByName.id, cloudHabit.id)
+          await updateHabitFromCloud(existingByName.id, {
+            streak: Math.max(cloudStreak, existingByName.streak),
+            best_streak: Math.max(cloudBestStreak, existingByName.bestStreak),
+            icon: cloudHabit.icon || existingByName.icon,
+            color: cloudHabit.color || existingByName.color,
+          })
+          continue
+        }
+
+        // Create new local habit from cloud
+        log.debug('[CloudSync] Creating local habit from cloud:', cloudHabit.name)
+        await createHabitFromCloud({
+          cloud_id: cloudHabit.id,
+          name: cloudHabit.name,
+          frequency: cloudHabit.frequency || 'daily',
+          streak: cloudHabit.streak ?? 0,
+          best_streak: cloudHabit.best_streak ?? 0,
+          icon: cloudHabit.icon || '⭐',
+          color: cloudHabit.color || '#8B5CF6',
+          target_type: cloudHabit.target_type || 'boolean',
+          target_value: cloudHabit.target_value ?? 1,
+          target_unit: cloudHabit.target_unit,
+          created_at: cloudHabit.created_at || new Date().toISOString(),
+        })
+      }
+
+      log.debug('[CloudSync] Sync from cloud complete')
+    } catch (error) {
+      log.error('[CloudSync] syncFromCloud failed:', error)
+      throw error
+    }
+  }, [user, isAuthenticated, getHabits, createHabitFromCloud, updateHabitCloudId, updateHabitFromCloud])
+
+  // Sync TO cloud (Local -> Cloud)
   const syncToCloud = useCallback(async () => {
     if (!supabase || !user || !isAuthenticated) {
-      log.debug('[CloudSync] Skipping sync - not authenticated')
+      log.debug('[CloudSync] Skipping syncToCloud - not authenticated')
+      return
+    }
+
+    log.debug('[CloudSync] Starting sync to cloud...')
+
+    try {
+      const localHabits = await getHabits()
+      log.debug('[CloudSync] Syncing', localHabits.length, 'local habits to cloud')
+
+      // Fetch existing cloud habits
+      const { data: existingHabits } = await supabase
+        .from('habits')
+        .select('id, name')
+        .eq('user_id', user.id)
+
+      const existingByName = new Map(
+        (existingHabits || []).map(h => [h.name.toLowerCase(), h.id])
+      )
+
+      for (const habit of localHabits) {
+        if (habit.cloudId) {
+          // Update existing cloud habit
+          log.debug('[CloudSync] Updating cloud habit:', habit.name)
+          const updateData: CloudHabitUpdate = {
+            streak: habit.streak,
+            best_streak: habit.bestStreak || 0,
+            icon: habit.icon || '⭐',
+            color: habit.color || '#8B5CF6',
+          }
+          await supabase
+            .from('habits')
+            .update(updateData)
+            .eq('id', habit.cloudId)
+        } else {
+          // Check if habit exists in cloud by name
+          const existingId = existingByName.get(habit.name.toLowerCase())
+
+          if (existingId) {
+            // Link local to existing cloud habit and update
+            log.debug('[CloudSync] Linking and updating existing cloud habit:', habit.name)
+            await updateHabitCloudId(habit.id, existingId)
+            const updateData: CloudHabitUpdate = {
+              streak: habit.streak,
+              best_streak: habit.bestStreak || 0,
+              icon: habit.icon || '⭐',
+              color: habit.color || '#8B5CF6',
+            }
+            await supabase
+              .from('habits')
+              .update(updateData)
+              .eq('id', existingId)
+          } else {
+            // Create new cloud habit
+            log.debug('[CloudSync] Creating new cloud habit:', habit.name)
+            await uploadHabit(habit)
+          }
+        }
+      }
+
+      log.debug('[CloudSync] Sync to cloud complete')
+    } catch (error) {
+      log.error('[CloudSync] syncToCloud failed:', error)
+      throw error
+    }
+  }, [user, isAuthenticated, getHabits, uploadHabit, updateHabitCloudId])
+
+  // Full bidirectional sync: Cloud -> Local, then Local -> Cloud
+  const fullSync = useCallback(async () => {
+    if (!supabase || !user || !isAuthenticated) {
+      log.debug('[CloudSync] Skipping fullSync - not authenticated')
       return
     }
 
@@ -96,55 +277,41 @@ export function useCloudSync() {
     setSyncError(null)
 
     try {
-      const localHabits = await getHabits()
-      log.debug('[CloudSync] Syncing', localHabits.length, 'habits to cloud')
+      // First: Pull from cloud to local (ensures we get habits from other devices)
+      await syncFromCloud()
 
-      // Fetch existing cloud habits first
-      const { data: existingHabits } = await supabase
-        .from('habits')
-        .select('id, name')
-        .eq('user_id', user.id)
-
-      const existingByName = new Map(
-        (existingHabits || []).map(h => [h.name.toLowerCase(), h.id])
-      )
-
-      for (const habit of localHabits) {
-        // Check if habit already exists in cloud by name
-        const existingId = existingByName.get(habit.name.toLowerCase())
-
-        if (existingId) {
-          // Update existing habit
-          log.debug('[CloudSync] Updating existing habit:', habit.name)
-          const updateData: CloudHabitUpdate = {
-            streak: habit.streak,
-            best_streak: habit.bestStreak || 0,
-            icon: habit.icon || '⭐',
-            color: habit.color || '#8B5CF6',
-          }
-          await supabase
-            .from('habits')
-            .update(updateData)
-            .eq('id', existingId)
-        } else {
-          // Insert new habit
-          log.debug('[CloudSync] Creating new habit:', habit.name)
-          await uploadHabit(habit)
-        }
-      }
+      // Then: Push local to cloud (ensures local changes are synced)
+      await syncToCloud()
 
       setLastSyncAt(new Date())
-      log.debug('[CloudSync] Sync complete')
+      log.debug('[CloudSync] Full sync complete')
     } catch (error) {
-      log.error('[CloudSync] Sync failed:', error)
+      log.error('[CloudSync] Full sync failed:', error)
       setSyncError(error instanceof Error ? error.message : 'Sync failed')
     } finally {
       setIsSyncing(false)
       syncInProgress.current = false
     }
-  }, [user, isAuthenticated, getHabits, uploadHabit])
+  }, [user, isAuthenticated, syncFromCloud, syncToCloud])
 
-  // Fetch habits from cloud
+  // Sync single habit immediately (called after creating a habit)
+  const syncHabit = useCallback(async (habit: Habit): Promise<CloudHabit | null> => {
+    if (!supabase || !user || !isAuthenticated) {
+      log.debug('[CloudSync] Skipping syncHabit - not authenticated')
+      return null
+    }
+
+    try {
+      log.debug('[CloudSync] Syncing single habit:', habit.name)
+      const cloudHabit = await uploadHabit(habit)
+      return cloudHabit
+    } catch (error) {
+      log.error('[CloudSync] Failed to sync habit:', error)
+      return null
+    }
+  }, [user, isAuthenticated, uploadHabit])
+
+  // Fetch habits from cloud (for display/comparison)
   const fetchFromCloud = useCallback(async () => {
     if (!supabase || !user) return []
 
@@ -210,18 +377,33 @@ export function useCloudSync() {
     if (error) throw error
   }, [])
 
-  // Auto-sync when authenticated
+  // Delete habit from cloud
+  const deleteHabitFromCloud = useCallback(async (habitCloudId: string) => {
+    if (!supabase) return
+
+    const { error } = await supabase
+      .from('habits')
+      .delete()
+      .eq('id', habitCloudId)
+
+    if (error) {
+      log.error('[CloudSync] Delete error:', error)
+      throw error
+    }
+  }, [])
+
+  // Auto-sync when authenticated (full bidirectional sync)
   useEffect(() => {
     if (isAuthenticated && isSupabaseConfigured()) {
       // Delay initial sync slightly
       const timeout = setTimeout(() => {
-        syncToCloud()
+        fullSync()
       }, 2000)
       return () => clearTimeout(timeout)
     }
-  }, [isAuthenticated, syncToCloud])
+  }, [isAuthenticated, fullSync])
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates and sync when changes detected
   useEffect(() => {
     if (!supabase || !user || !isAuthenticated) return
 
@@ -236,7 +418,11 @@ export function useCloudSync() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          log.debug('[CloudSync] Realtime update:', payload)
+          log.debug('[CloudSync] Realtime update:', payload.eventType)
+          // Trigger sync from cloud when external changes detected
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            syncFromCloud()
+          }
         }
       )
       .subscribe()
@@ -244,19 +430,26 @@ export function useCloudSync() {
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [user, isAuthenticated])
+  }, [user, isAuthenticated, syncFromCloud])
 
   return {
     isSyncing,
     lastSyncAt,
     syncError,
     isConfigured: isSupabaseConfigured(),
+    // Sync operations
+    fullSync,
     syncToCloud,
+    syncFromCloud,
+    syncHabit,
+    // Data fetching
     fetchFromCloud,
     fetchFriendHabits,
+    // Individual operations
     uploadHabit,
     uploadCompletion,
     updateHabitCategory,
     setHabitPublic,
+    deleteHabitFromCloud,
   }
 }

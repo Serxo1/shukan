@@ -16,6 +16,8 @@
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-shadow",
     "opener:default",
     "sql:default",
     "sql:allow-execute",

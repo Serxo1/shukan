@@ -7,6 +7,45 @@ use tauri::{
 };
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+// macOS-specific imports for title bar styling
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
+
+// Windows-specific imports for removing window chrome
+#[cfg(windows)]
+use windows::{
+    Win32::Foundation::HWND,
+    Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_NCRENDERING_POLICY, DWMNCRP_DISABLED},
+    Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_STYLE, GWL_EXSTYLE, WS_CAPTION, WS_THICKFRAME, WS_SYSMENU, WS_EX_CLIENTEDGE, WS_EX_WINDOWEDGE},
+};
+
+#[cfg(windows)]
+fn remove_window_chrome(hwnd: isize) {
+    unsafe {
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
+
+        // Disable non-client area rendering
+        let policy = DWMNCRP_DISABLED;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_NCRENDERING_POLICY,
+            &policy as *const _ as *const std::ffi::c_void,
+            std::mem::size_of_val(&policy) as u32,
+        );
+
+        // Remove window styles that could cause title bar
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        let new_style = style & !(WS_CAPTION.0 as isize) & !(WS_THICKFRAME.0 as isize) & !(WS_SYSMENU.0 as isize);
+        SetWindowLongPtrW(hwnd, GWL_STYLE, new_style);
+
+        // Remove extended styles
+        let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let new_ex_style = ex_style & !(WS_EX_CLIENTEDGE.0 as isize) & !(WS_EX_WINDOWEDGE.0 as isize);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex_style);
+    }
+}
+
+
 // Get the path to the onboarding flag file
 fn get_onboarding_flag_path(app: &tauri::AppHandle) -> Option<PathBuf> {
     app.path().app_data_dir().ok().map(|dir| dir.join("onboarding-complete"))
@@ -112,6 +151,18 @@ fn get_migrations() -> Vec<Migration> {
 
                 -- Index for goals lookup
                 CREATE INDEX IF NOT EXISTS idx_goals_habit_id ON goals(habit_id);
+            "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "add cloud_id for supabase sync",
+            sql: r#"
+                -- Add cloud_id to link local habits with Supabase
+                ALTER TABLE habits ADD COLUMN cloud_id TEXT;
+
+                -- Index for cloud sync lookups
+                CREATE INDEX IF NOT EXISTS idx_habits_cloud_id ON habits(cloud_id);
             "#,
             kind: MigrationKind::Up,
         },
@@ -243,6 +294,9 @@ fn complete_onboarding(app: tauri::AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Workaround for WebView2 transparency issues
+    std::env::set_var("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(
@@ -253,6 +307,40 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            // Create main window - platform-specific configurations
+            #[allow(unused_mut)]
+            let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/".into()))
+                .title("")
+                .inner_size(620.0, 64.0)
+                .min_inner_size(500.0, 64.0)
+                .resizable(false)
+                .decorations(false)
+                .transparent(true)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .center()
+                .visible(false)
+                .focused(true);
+
+            // macOS: Use transparent title bar style
+            #[cfg(target_os = "macos")]
+            {
+                window_builder = window_builder.title_bar_style(TitleBarStyle::Transparent);
+            }
+
+            let _main_window = window_builder.build()?;
+
+            println!("[Window] Main window created programmatically");
+
+            // Remove window chrome via Win32 API to fix WebView2 title bar bug
+            #[cfg(windows)]
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(hwnd) = window.hwnd() {
+                    remove_window_chrome(hwnd.0 as isize);
+                    println!("[Window] Removed window chrome via Win32 API");
+                }
+            }
+
             // Create tray menu
             let settings_item = MenuItem::with_id(app, "settings", "Configurações", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
@@ -330,11 +418,19 @@ pub fn run() {
         .on_window_event(|window, event| {
             // Hide main window instead of closing when clicking X or pressing Escape
             // But allow other windows (like settings) to close normally
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    let _ = window.hide();
-                    api.prevent_close();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "main" {
+                        let _ = window.hide();
+                        api.prevent_close();
+                    }
                 }
+                WindowEvent::Focused(focused) => {
+                    if window.label() == "main" {
+                        println!("[Window] main focused: {}", focused);
+                    }
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())
